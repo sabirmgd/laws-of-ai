@@ -18,6 +18,10 @@ CF_ZONE="deleg8.dev"
 CF_API_EMAIL="${CF_API_EMAIL:-}"
 CF_API_KEY="${CF_API_KEY:-}"
 
+echo "==> Ensuring required APIs are enabled"
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com \
+  cloudbuild.googleapis.com --project "$PROJECT_ID" --quiet
+
 echo "==> Deploying $SERVICE to Cloud Run ($PROJECT_ID / $REGION)"
 gcloud run deploy "$SERVICE" \
   --source . \
