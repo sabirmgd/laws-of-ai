@@ -222,7 +222,16 @@ function indexHtml() {
   <link rel="stylesheet" href="styles.css" />
 
   <script type="application/ld+json">${jsonLd()}</script>
-</head>
+${SITE.ga ? `  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', '${SITE.ga}');
+  </script>
+` : ""}</head>
+
 <body>
   <div class="grain" aria-hidden="true"></div>
 

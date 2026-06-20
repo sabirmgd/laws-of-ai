@@ -11,7 +11,8 @@
     "keywords": "AI agents, LLM agents, agent design, agent reliability, prompt engineering, tool design, RAG, retrieval augmented generation, multi-agent systems, agent evaluation, evals, prompt injection, lethal trifecta, agentic workflows, building AI agents, agent architecture, context engineering, laws of AI agents",
     "ogImage": "https://laws.deleg8.dev/og-image.png",
     "locale": "en_US",
-    "twitter": "@sabirmgd"
+    "twitter": "@sabirmgd",
+    "ga": "G-YQSH69LQ5P"
   },
   "categories": [
     { "id": "context-reliability", "name": "Context & Reliability", "blurb": "How agents see the world, and where they break.", "accent": "#7c9cff", "icon": "pulse" },
