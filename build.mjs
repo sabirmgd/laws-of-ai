@@ -201,6 +201,64 @@ ${items}
   </section>`;
 }
 
+// ---------- shared navigation (used by index + edition) ----------
+const navMark = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.4-7 4.2 14 2.4-7H21"/></svg>`;
+
+function navHtml(active) {
+  const link = (href, label, key) =>
+    `<a class="nav__link${active === key ? " is-active" : ""}" href="${href}">${label}</a>`;
+  return `  <a class="skip" href="#main">Skip to content</a>
+  <header class="nav" id="nav">
+    <div class="nav__in">
+      <a class="nav__brand" href="index.html" aria-label="${esc(SITE.name)} — home">
+        <span class="nav__mark">${navMark}</span>
+        <span class="nav__brandtx">Laws of AI Agents</span>
+      </a>
+      <nav class="nav__links" aria-label="Primary">
+        ${link("index.html#main", "All laws", "home")}
+        ${link("edition.html", "Digital edition", "edition")}
+        ${link("index.html#references", "Sources", "refs")}
+      </nav>
+      <a class="nav__cta" href="edition.html">Read the edition ${arrow}</a>
+    </div>
+  </header>`;
+}
+
+const backTopHtml = `  <button class="backtop" id="backtop" type="button" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+  </button>`;
+
+function navCss() {
+  return `/* Shared navigation, back-to-top, reading progress. Linked by index + edition. */
+.skip{position:absolute;left:-999px;top:8px;z-index:200;background:var(--text,#f3f4f6);color:#0a0b0f;padding:8px 14px;border-radius:8px;font-family:var(--mono);font-size:13px}
+.skip:focus{left:12px}
+.nav{position:sticky;top:0;z-index:100;transition:background .25s ease,border-color .25s ease,backdrop-filter .25s ease;border-bottom:1px solid transparent}
+.nav.is-scrolled{background:color-mix(in srgb,#0a0b0f 78%,transparent);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);border-bottom-color:var(--border,#23262f)}
+.nav__in{max-width:var(--maxw,1160px);margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:18px}
+.nav__brand{display:inline-flex;align-items:center;gap:10px;flex:none}
+.nav__mark{width:30px;height:30px;display:grid;place-items:center;border-radius:9px;color:#0a0b0f;background:linear-gradient(135deg,#7c9cff,#5ed3a8)}
+.nav__mark svg{width:17px;height:17px}
+.nav__brandtx{font-family:var(--serif,Georgia,serif);font-weight:500;font-size:17px;letter-spacing:-.01em;color:var(--text,#f3f4f6)}
+.nav__links{display:flex;align-items:center;gap:4px;margin-left:6px}
+.nav__link{font-family:var(--mono,monospace);font-size:13px;color:var(--text-dim,#9aa0ac);padding:7px 12px;border-radius:99px;transition:color .2s,background .2s}
+.nav__link:hover{color:var(--text,#f3f4f6);background:color-mix(in srgb,#fff 6%,transparent)}
+.nav__link.is-active{color:var(--text,#f3f4f6);background:color-mix(in srgb,var(--accent,#7c9cff) 16%,transparent)}
+.nav__cta{margin-left:auto;display:inline-flex;align-items:center;gap:7px;font-family:var(--mono,monospace);font-size:13px;color:#0a0b0f;background:var(--text,#f3f4f6);border-radius:99px;padding:9px 16px;white-space:nowrap;transition:transform .2s var(--ease,ease),opacity .2s}
+.nav__cta:hover{transform:translateY(-1px);opacity:.92;color:#0a0b0f}
+.nav__cta .arw{width:12px;height:12px}
+.backtop{position:fixed;right:22px;bottom:22px;z-index:90;width:44px;height:44px;display:grid;place-items:center;border-radius:50%;border:1px solid var(--border,#23262f);background:color-mix(in srgb,#14161d 88%,transparent);backdrop-filter:blur(8px);color:var(--text,#f3f4f6);cursor:pointer;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .25s,transform .25s}
+.backtop.is-on{opacity:1;transform:none;pointer-events:auto}
+.backtop:hover{border-color:var(--accent,#7c9cff);color:var(--accent,#7c9cff)}
+.backtop svg{width:19px;height:19px}
+@media(max-width:680px){
+  .nav__brandtx{display:none}
+  .nav__cta{display:none}
+  .nav__links{margin-left:auto;gap:2px}
+  .nav__link{padding:7px 9px;font-size:12px}
+}
+`;
+}
+
 // ---------- page ----------
 function indexHtml() {
   const canonical = SITE.url + "/";
@@ -241,6 +299,7 @@ function indexHtml() {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="nav.css" />
 
   <script type="application/ld+json">${jsonLd()}</script>
 ${SITE.ga ? `  <!-- Google tag (gtag.js) -->
@@ -255,6 +314,8 @@ ${SITE.ga ? `  <!-- Google tag (gtag.js) -->
 
 <body>
   <div class="grain" aria-hidden="true"></div>
+
+${navHtml("home")}
 
   <header class="hero">
     <div class="hero__inner">
@@ -274,11 +335,16 @@ ${SITE.ga ? `  <!-- Google tag (gtag.js) -->
 
 ${editionPromoHtml()}
 
-  <nav class="filters" id="filters" aria-label="Filter laws by category">
-      ${filterHtml()}
-  </nav>
+  <div class="filterbar" id="filterbar">
+    <div class="filterbar__in">
+      <nav class="filters" id="filters" aria-label="Filter laws by category">
+        ${filterHtml()}
+      </nav>
+      <span class="filters__count" id="filtersCount">${laws.length} laws</span>
+    </div>
+  </div>
 
-  <main class="grid" id="grid">
+  <main class="grid" id="main" tabindex="-1">
 ${laws.map(cardHtml).join("\n")}
   </main>
 
@@ -315,6 +381,8 @@ ${refsHtml()}
       <a class="modal__source" id="modal-source" target="_blank" rel="noopener" hidden></a>
     </article>
   </div>
+
+${backTopHtml}
 
   <script src="app.js"></script>
 </body>
@@ -368,7 +436,7 @@ function editionBody() {
   return DATA.categories
     .map((c, i) => {
       const ls = lawsInCat(c.id);
-      const divider = `      <section class="part" style="--ac:${c.accent}">
+      const divider = `      <section class="part" id="cat-${c.id}" style="--ac:${c.accent}">
         <span class="part__ic">${icon(c.icon)}</span>
         <div>
           <p class="part__eyebrow">Part ${i + 1} · Laws ${pad(ls[0].number)}–${pad(ls[ls.length - 1].number)}</p>
@@ -377,6 +445,15 @@ function editionBody() {
         </div>
       </section>`;
       return divider + "\n" + ls.map(editionLaw).join("\n");
+    })
+    .join("\n");
+}
+
+function editionToc() {
+  return DATA.categories
+    .map((c, i) => {
+      const ls = lawsInCat(c.id);
+      return `        <a href="#cat-${c.id}" data-target="cat-${c.id}" style="--ac:${c.accent}"><span>Part ${i + 1} · ${pad(ls[0].number)}–${pad(ls[ls.length - 1].number)}</span>${esc(c.name)}</a>`;
     })
     .join("\n");
 }
@@ -403,14 +480,17 @@ function editionHtml() {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="edition.css" />
+  <link rel="stylesheet" href="nav.css" />
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
 ` : ""}</head>
 <body class="ed">
   <div class="grain" aria-hidden="true"></div>
 
+${navHtml("edition")}
+  <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
   <header class="ed__hero">
-    <a class="ed__back" href="index.html">← All laws</a>
     <p class="ed__eyebrow">The Expanded Digital Edition · ${esc(SITE.version || "v1")}</p>
     <h1 class="ed__title">${esc(DATA.title)}</h1>
     <p class="ed__sub">${esc(DATA.subtitle)}</p>
@@ -428,7 +508,14 @@ ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${
     </div>
   </header>
 
-  <main class="ed__main">
+  <aside class="ed__toc" aria-label="Contents">
+    <p class="ed__toc-h">Contents</p>
+    <nav>
+${editionToc()}
+    </nav>
+  </aside>
+
+  <main class="ed__main" id="main">
 ${editionBody()}
   </main>
 
@@ -437,6 +524,8 @@ ${editionBody()}
     <p class="ed__foot-sub"><a href="index.html">Back to the free overview</a> · Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></p>
   </footer>
 
+${backTopHtml}
+
   <script>
     (function () {
       var all = function () { return Array.prototype.slice.call(document.querySelectorAll('details.lw')); };
@@ -444,6 +533,7 @@ ${editionBody()}
       var ca = document.getElementById('collapseAll');
       if (ea) ea.addEventListener('click', function () { all().forEach(function (d) { d.open = true; }); });
       if (ca) ca.addEventListener('click', function () { all().forEach(function (d) { d.open = false; }); });
+
       function openHash() {
         if (!location.hash) return;
         var el = document.querySelector(location.hash);
@@ -451,6 +541,35 @@ ${editionBody()}
       }
       window.addEventListener('hashchange', openHash);
       openHash();
+
+      // Reading progress + sticky-nav shadow + back-to-top
+      var nav = document.getElementById('nav');
+      var bar = document.getElementById('progressBar');
+      var backtop = document.getElementById('backtop');
+      function onScroll() {
+        var doc = document.documentElement;
+        var max = (doc.scrollHeight - doc.clientHeight) || 1;
+        var y = window.scrollY || window.pageYOffset || 0;
+        if (bar) bar.style.width = Math.min(100, (y / max) * 100) + '%';
+        if (nav) nav.classList.toggle('is-scrolled', y > 8);
+        if (backtop) backtop.classList.toggle('is-on', y > 560);
+        spy(y);
+      }
+      if (backtop) backtop.addEventListener('click', function () { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+
+      // Scrollspy: highlight the category in the sidebar TOC
+      var tocLinks = Array.prototype.slice.call(document.querySelectorAll('.ed__toc a'));
+      var parts = tocLinks.map(function (a) { return document.getElementById(a.dataset.target); });
+      function spy(y) {
+        if (!tocLinks.length) return;
+        var idx = 0;
+        for (var i = 0; i < parts.length; i++) {
+          if (parts[i] && parts[i].getBoundingClientRect().top <= 120) idx = i;
+        }
+        tocLinks.forEach(function (a, i) { a.classList.toggle('is-active', i === idx); });
+      }
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
     })();
   </script>
 </body>
@@ -531,6 +650,18 @@ a{color:inherit;text-decoration:none}
 .ed__foot{padding:48px 24px 64px;border-top:1px solid var(--border);margin-top:54px;color:var(--faint);font-family:var(--mono);font-size:12.5px;text-align:center}
 .ed__foot-sub{margin-top:8px}
 .ed__foot a:hover{color:var(--accent)}
+.progress{position:fixed;top:0;left:0;right:0;height:3px;z-index:120;pointer-events:none}
+.progress span{display:block;height:100%;width:0;background:linear-gradient(90deg,#7c9cff,#5ed3a8)}
+.part{scroll-margin-top:84px}
+.lw{scroll-margin-top:84px}
+.ed__toc{display:none}
+.ed__toc-h{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:10px}
+.ed__toc nav{display:flex;flex-direction:column;gap:2px}
+.ed__toc a{font-size:13px;color:var(--dim);padding:7px 10px;border-radius:8px;border-left:2px solid transparent;line-height:1.3;transition:color .2s,border-color .2s,background .2s}
+.ed__toc a span{display:block;font-family:var(--mono);font-size:10px;color:var(--faint);margin-bottom:1px}
+.ed__toc a:hover{color:var(--text)}
+.ed__toc a.is-active{color:var(--text);border-left-color:var(--ac,#7c9cff);background:color-mix(in srgb,#fff 5%,transparent)}
+@media(min-width:1300px){.ed__toc{display:block;position:fixed;top:104px;left:calc((100vw - 840px)/2 - 240px);width:212px;max-height:calc(100vh - 150px);overflow:auto;z-index:80}}
 @media(max-width:560px){.lw__sum{gap:12px;padding:15px 16px}.lw__open{padding:0 16px 18px}.lw__name{font-size:17px}}
 `;
 }
@@ -573,6 +704,7 @@ const publicData = {
 writeFileSync(join(DIST, "index.html"), indexHtml());
 writeFileSync(join(DIST, "edition.html"), editionHtml());
 writeFileSync(join(DIST, "edition.css"), editionCss());
+writeFileSync(join(DIST, "nav.css"), navCss());
 writeFileSync(join(DIST, "sitemap.xml"), sitemapXml());
 writeFileSync(join(DIST, "robots.txt"), robotsTxt());
 writeFileSync(join(DIST, "laws.json"), JSON.stringify(publicData, null, 2));

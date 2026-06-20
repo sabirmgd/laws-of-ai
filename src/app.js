@@ -25,8 +25,32 @@
         const show = id === "all" || c.dataset.category === id;
         c.style.display = show ? "" : "none";
       });
+      updateCount();
     });
   }
+
+  // ---------- Live filter count ----------
+  const countEl = $("#filtersCount");
+  function updateCount() {
+    if (!countEl) return;
+    const n = cards.filter((c) => c.style.display !== "none").length;
+    countEl.textContent = n + (n === 1 ? " law" : " laws");
+  }
+
+  // ---------- Sticky nav shadow + back-to-top ----------
+  const nav = $("#nav");
+  const backtop = $("#backtop");
+  const onScroll = () => {
+    const y = window.scrollY || window.pageYOffset || 0;
+    if (nav) nav.classList.toggle("is-scrolled", y > 8);
+    if (backtop) backtop.classList.toggle("is-on", y > 560);
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
+  if (backtop)
+    backtop.addEventListener("click", () =>
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    );
 
   // ---------- Modal ----------
   function dataFromCard(card) {
