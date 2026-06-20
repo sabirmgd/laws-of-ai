@@ -470,6 +470,29 @@ a:hover { color: var(--accent); }
   margin-bottom: 9px;
 }
 .modal__block p { font-size: 16px; color: var(--text); line-height: 1.64; }
+.modal__source {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-soft);
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  transition: opacity 0.2s var(--ease);
+}
+.modal__source[hidden] { display: none; }
+.modal__source::after {
+  content: "↗";
+  font-size: 13px;
+  opacity: 0.8;
+  transition: transform 0.25s var(--ease);
+}
+.modal__source:hover { opacity: 0.82; }
+.modal__source:hover::after { transform: translate(2px, -2px); }
 
 /* ---------- Footer ---------- */
 .footer {

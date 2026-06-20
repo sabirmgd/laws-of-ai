@@ -38,6 +38,9 @@
       principle: $(".card__principle", card)?.textContent.trim() || "",
       takeaway: $(".card__takeaway", card)?.textContent.trim() || "",
       accent: card.style.getPropertyValue("--card-accent") || "var(--accent)",
+      sourceTitle: card.dataset.sourceTitle || "",
+      sourceAuthor: card.dataset.sourceAuthor || "",
+      sourceUrl: card.dataset.sourceUrl || "",
     };
   }
 
@@ -59,6 +62,20 @@
     tl.style.color = d.accent;
     $("#modal-principle").textContent = d.principle;
     $("#modal-takeaway").textContent = d.takeaway;
+    const srcEl = $("#modal-source");
+    if (srcEl) {
+      if (d.sourceUrl) {
+        const label = d.sourceAuthor
+          ? `${d.sourceTitle} — ${d.sourceAuthor}`
+          : d.sourceTitle;
+        srcEl.textContent = "Source: " + label;
+        srcEl.href = d.sourceUrl;
+        srcEl.style.color = d.accent;
+        srcEl.hidden = false;
+      } else {
+        srcEl.hidden = true;
+      }
+    }
     modal.hidden = false;
     document.body.style.overflow = "hidden";
     if (push && card.id && location.hash !== "#" + card.id) {
