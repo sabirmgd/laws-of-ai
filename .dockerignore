@@ -3,5 +3,7 @@
 .gitignore
 README.md
 scripts
+dist
+node_modules
 *.md
 .DS_Store

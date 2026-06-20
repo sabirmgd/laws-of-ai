@@ -1,0 +1,261 @@
+#!/usr/bin/env node
+/**
+ * Build step for Laws of AI Agents.
+ *
+ * Reads data/laws.json and the static assets in src/, then emits a fully
+ * pre-rendered, SEO-optimized site into dist/:
+ *   - index.html   server-rendered cards (crawlable without JS) + meta + JSON-LD
+ *   - sitemap.xml  home + one deep-link per law
+ *   - robots.txt   allow-all, points at the sitemap
+ *   - laws.json    raw data (handy as a tiny public API)
+ *   - styles.css / app.js / favicon.svg / og-image.png  copied through
+ *
+ * Zero dependencies — pure Node. Edit data/laws.json, rebuild, done.
+ */
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = dirname(fileURLToPath(import.meta.url));
+const DATA = JSON.parse(readFileSync(join(ROOT, "data/laws.json"), "utf8"));
+const DIST = join(ROOT, "dist");
+const SITE = DATA.site;
+const YEAR = "2026";
+
+// ---------- helpers ----------
+const esc = (s = "") =>
+  String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+const slugify = (s) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+const catById = Object.fromEntries(DATA.categories.map((c) => [c.id, c]));
+const laws = DATA.laws.map((l) => ({ ...l, slug: slugify(l.name) }));
+
+// ---------- JSON-LD structured data ----------
+function jsonLd() {
+  const defined = laws.map((l) => ({
+    "@type": "DefinedTerm",
+    "@id": `${SITE.url}/#${l.slug}`,
+    name: l.name,
+    description: l.tagline,
+    inDefinedTermSet: `${SITE.url}/#termset`,
+    termCode: String(l.number),
+    additionalProperty: [
+      { "@type": "PropertyValue", name: "Principle", value: l.principle },
+      { "@type": "PropertyValue", name: "Takeaway", value: l.takeaway },
+      { "@type": "PropertyValue", name: "Category", value: catById[l.category]?.name || "" },
+    ],
+  }));
+
+  const graph = [
+    {
+      "@type": "WebSite",
+      "@id": `${SITE.url}/#website`,
+      url: SITE.url + "/",
+      name: SITE.name,
+      description: SITE.description,
+      inLanguage: "en",
+      author: { "@type": "Person", name: SITE.author },
+    },
+    {
+      "@type": "DefinedTermSet",
+      "@id": `${SITE.url}/#termset`,
+      name: SITE.name,
+      description: SITE.description,
+      url: SITE.url + "/",
+      hasDefinedTerm: defined,
+    },
+    {
+      "@type": "ItemList",
+      "@id": `${SITE.url}/#list`,
+      name: SITE.name,
+      numberOfItems: laws.length,
+      itemListElement: laws.map((l) => ({
+        "@type": "ListItem",
+        position: l.number,
+        url: `${SITE.url}/#${l.slug}`,
+        name: l.name,
+      })),
+    },
+  ];
+
+  return JSON.stringify({ "@context": "https://schema.org", "@graph": graph });
+}
+
+// ---------- card markup (pre-rendered, crawlable) ----------
+function cardHtml(l) {
+  const cat = catById[l.category] || {};
+  const accent = cat.accent || "#888";
+  const num = String(l.number).padStart(2, "0");
+  return `        <article class="card" id="${l.slug}"
+          data-category="${esc(l.category)}"
+          style="--card-accent:${accent};--tag-color:${accent}">
+          <div class="card__top">
+            <span class="card__number">${num}</span>
+            <span class="tag">${esc(cat.name || "")}</span>
+          </div>
+          <h2 class="card__name"><a href="#${l.slug}" class="card__link">${esc(l.name)}</a></h2>
+          <p class="card__tagline">${esc(l.tagline)}</p>
+          <div class="card__detail" hidden>
+            <h3>The principle</h3>
+            <p class="card__principle">${esc(l.principle)}</p>
+            <h3>The takeaway</h3>
+            <p class="card__takeaway">${esc(l.takeaway)}</p>
+          </div>
+          <span class="card__cue" aria-hidden="true">Read the law &rarr;</span>
+        </article>`;
+}
+
+function filterHtml() {
+  const pills = [
+    `<button class="filter is-active" data-filter="all"><span>All laws</span></button>`,
+    ...DATA.categories.map(
+      (c) =>
+        `<button class="filter" data-filter="${esc(c.id)}"><span class="filter__dot" style="background:${c.accent}"></span><span>${esc(c.name)}</span></button>`
+    ),
+  ];
+  return pills.join("\n      ");
+}
+
+// ---------- page ----------
+function indexHtml() {
+  const canonical = SITE.url + "/";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${esc(SITE.name)} — ${esc(DATA.subtitle)}</title>
+  <meta name="description" content="${esc(SITE.description)}" />
+  <meta name="keywords" content="${esc(SITE.keywords)}" />
+  <meta name="author" content="${esc(SITE.author)}" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="theme-color" content="#0b0c10" />
+  <link rel="canonical" href="${canonical}" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="${esc(SITE.name)}" />
+  <meta property="og:title" content="${esc(SITE.name)}" />
+  <meta property="og:description" content="${esc(SITE.description)}" />
+  <meta property="og:url" content="${canonical}" />
+  <meta property="og:locale" content="${esc(SITE.locale)}" />
+  <meta property="og:image" content="${esc(SITE.ogImage)}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="${esc(SITE.name)}" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(SITE.name)}" />
+  <meta name="twitter:description" content="${esc(SITE.description)}" />
+  <meta name="twitter:image" content="${esc(SITE.ogImage)}" />
+  <meta name="twitter:creator" content="${esc(SITE.twitter)}" />
+
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <script type="application/ld+json">${jsonLd()}</script>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="hero">
+    <div class="hero__inner">
+      <p class="hero__eyebrow">Field notes · v1</p>
+      <h1 class="hero__title">${esc(DATA.title)}</h1>
+      <p class="hero__subtitle">${esc(DATA.subtitle)}</p>
+      <p class="hero__intro">${esc(DATA.intro)}</p>
+      <div class="hero__meta">
+        <span class="hero__count">${laws.length} laws</span>
+        <span class="hero__dot">·</span>
+        <span>Inspired by <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></span>
+      </div>
+    </div>
+  </header>
+
+  <nav class="filters" id="filters" aria-label="Filter laws by category">
+      ${filterHtml()}
+  </nav>
+
+  <main class="grid" id="grid">
+${laws.map(cardHtml).join("\n")}
+  </main>
+
+  <footer class="footer">
+    <p>Built by ${esc(SITE.author)}. A living list — more laws as they earn their place.</p>
+    <p class="footer__sub">Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a> · ${YEAR}</p>
+  </footer>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-name" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <article class="modal__card">
+      <button class="modal__close" data-close aria-label="Close">&times;</button>
+      <div class="modal__head">
+        <span class="modal__number" id="modal-number"></span>
+        <span class="tag" id="modal-tag"></span>
+      </div>
+      <h2 class="modal__name" id="modal-name"></h2>
+      <p class="modal__tagline" id="modal-tagline"></p>
+      <div class="modal__body">
+        <div class="modal__block">
+          <h3>The principle</h3>
+          <p id="modal-principle"></p>
+        </div>
+        <div class="modal__block">
+          <h3>The takeaway</h3>
+          <p id="modal-takeaway"></p>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+`;
+}
+
+function sitemapXml() {
+  const urls = [
+    { loc: SITE.url + "/", priority: "1.0" },
+    ...laws.map((l) => ({ loc: `${SITE.url}/#${l.slug}`, priority: "0.7" })),
+  ];
+  const body = urls
+    .map(
+      (u) =>
+        `  <url>\n    <loc>${u.loc}</loc>\n    <changefreq>monthly</changefreq>\n    <priority>${u.priority}</priority>\n  </url>`
+    )
+    .join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
+}
+
+function robotsTxt() {
+  return `User-agent: *\nAllow: /\n\nSitemap: ${SITE.url}/sitemap.xml\n`;
+}
+
+// ---------- emit ----------
+if (existsSync(DIST)) rmSync(DIST, { recursive: true, force: true });
+mkdirSync(DIST, { recursive: true });
+
+writeFileSync(join(DIST, "index.html"), indexHtml());
+writeFileSync(join(DIST, "sitemap.xml"), sitemapXml());
+writeFileSync(join(DIST, "robots.txt"), robotsTxt());
+writeFileSync(join(DIST, "laws.json"), JSON.stringify(DATA, null, 2));
+
+for (const asset of ["styles.css", "app.js", "favicon.svg"]) {
+  copyFileSync(join(ROOT, "src", asset), join(DIST, asset));
+}
+// og-image is optional (generated separately); copy if present
+const og = join(ROOT, "src", "og-image.png");
+if (existsSync(og)) copyFileSync(og, join(DIST, "og-image.png"));
+
+console.log(`✓ Built ${laws.length} laws -> dist/  (index.html, sitemap.xml, robots.txt, laws.json, assets)`);

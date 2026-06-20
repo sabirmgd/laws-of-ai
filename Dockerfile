@@ -1,12 +1,17 @@
-# Static site served by nginx, listening on 8080 for Cloud Run.
+# ---- build stage: pre-render the SEO-optimized static site ----
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY data ./data
+COPY src ./src
+COPY build.mjs ./
+RUN node build.mjs
+
+# ---- serve stage: nginx on 8080 for Cloud Run ----
 FROM nginx:1.27-alpine
 
-# Replace default server config with our 8080 / SPA-aware config
 RUN rm /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/conf.d/laws.conf
-
-# Static assets
-COPY public/ /usr/share/nginx/html/
+COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 8080
 

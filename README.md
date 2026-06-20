@@ -1,6 +1,6 @@
 # Laws of AI Agents
 
-A clean, slick card site of hard-won heuristics for building AI agents — field notes, not theorems. Inspired by the format of [Laws of UX](https://lawsofux.com).
+A clean, slick, **SEO-optimized** card site of hard-won heuristics for building AI agents — field notes, not theorems. Inspired by the format of [Laws of UX](https://lawsofux.com).
 
 **Live:** https://laws.deleg8.dev
 
@@ -8,21 +8,27 @@ A clean, slick card site of hard-won heuristics for building AI agents — field
 
 ## What this is
 
-A static, data-driven card deck. Every law lives in [`public/laws.json`](public/laws.json):
-adding a new law is a one-line append to the `laws` array — no code changes, no rebuild logic.
+A static, data-driven card deck. Every law lives in [`data/laws.json`](data/laws.json):
+adding a new law is a one-line append to the `laws` array — no code changes.
+
+A tiny zero-dependency build step ([`build.mjs`](build.mjs)) pre-renders that data into a
+fully crawlable static site, so search engines and social cards see real content (not an
+empty JS shell).
 
 ```
-public/
-  index.html     # markup shell
-  styles.css     # the whole design system
-  app.js         # renders cards + modal from laws.json
-  laws.json      # ← the content. edit this to add/change laws
+data/laws.json     # ← the content + site SEO metadata. edit this.
+src/
+  styles.css       # the whole design system
+  app.js           # progressive enhancement: filters, modal, #deep-links
   favicon.svg
+  og-image.png     # 1200x630 social share image
+build.mjs          # reads data/ + src/ -> emits dist/
+dist/              # generated (gitignored): index.html, sitemap.xml, robots.txt, ...
 ```
 
 ### Adding a law
 
-Append an object to `laws` in `public/laws.json`:
+Append an object to `laws` in `data/laws.json`, then rebuild:
 
 ```json
 {
@@ -35,22 +41,37 @@ Append an object to `laws` in `public/laws.json`:
 }
 ```
 
-`category` must match one of the `categories[].id` values
-(`context-reliability`, `scope-design`, `trust-coordination`). Add a new category to that
-array if you need one.
+`category` must match a `categories[].id`
+(`context-reliability`, `scope-design`, `trust-coordination`).
+
+---
+
+## SEO
+
+Built in, regenerated on every build from the data:
+
+- **Pre-rendered HTML** — all laws are real `<article>` elements in the initial markup,
+  crawlable with zero JS. Principle + takeaway text ships in the DOM.
+- **JSON-LD structured data** — `WebSite` + `DefinedTermSet` (each law a `DefinedTerm`) +
+  `ItemList`, so Google can read the deck as structured content.
+- **Full meta** — description, keywords, author, canonical, robots, theme-color.
+- **Open Graph + Twitter Card** — with a generated 1200×630 `og-image.png`.
+- **`sitemap.xml`** — home + a deep link per law. **`robots.txt`** points to it.
+- **Shareable deep links** — every law has a stable `#slug`; the modal opens from the URL
+  hash and updates it (`laws.deleg8.dev/#the-escape-hatch-law`).
+- **Semantic, accessible markup** — proper heading hierarchy, landmarks, ARIA.
 
 ---
 
 ## Run locally
 
-Any static server works:
-
 ```bash
-cd public && python3 -m http.server 8080
+node build.mjs                       # generates dist/
+cd dist && python3 -m http.server 8080
 # open http://localhost:8080
 ```
 
-Or build the production container (nginx on :8080, same as Cloud Run):
+Or build the production container (nginx on :8080, exactly what Cloud Run runs):
 
 ```bash
 docker build -t laws-of-ai .
@@ -63,24 +84,21 @@ docker run --rm -p 8080:8080 laws-of-ai
 
 Hosted on **Google Cloud Run** (`deleg8-dev`, region `us-central1`), scale-to-zero
 (`min-instances=0`, `max-instances=1`), fronted by Cloudflare DNS at `laws.deleg8.dev`.
+The Dockerfile runs `build.mjs` in a Node stage, then serves `dist/` with nginx.
 
 ### Automatic (CI/CD)
 
 Every push to `main` triggers [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml),
 which builds from source and deploys to Cloud Run. Requires one repo secret:
 
-- `GCP_SA_KEY` — a JSON key for a service account with `roles/run.admin`,
-  `roles/cloudbuild.builds.editor`, `roles/artifactregistry.writer`, and
-  `roles/iam.serviceAccountUser` on `deleg8-dev`.
+- `GCP_SA_KEY` — JSON key for a deployer service account on `deleg8-dev`.
 
 ### Manual (first deploy / from your machine)
 
 ```bash
-./scripts/deploy.sh
+./scripts/deploy.sh        # deploy + domain mapping + Cloudflare DNS
+./scripts/setup-ci.sh      # one-time: deployer SA + GCP_SA_KEY secret
 ```
-
-This deploys the service and (idempotently) sets up the Cloud Run domain mapping and the
-Cloudflare DNS records for `laws.deleg8.dev`.
 
 ---
 
@@ -89,6 +107,6 @@ Cloudflare DNS records for `laws.deleg8.dev`.
 - Dark, editorial aesthetic — `Fraunces` (display serif) over `Inter` (UI sans).
 - Three categories, each with an accent color, drawn straight from the data.
 - Cards rise in on load, lift on hover; click opens a detail modal (Esc / backdrop to close).
-- Zero framework, zero build step, zero JS dependencies. Loads instantly, scales to zero.
+- Zero runtime dependencies. Loads instantly, scales to zero.
 
 Inspired by the format of [Laws of UX](https://lawsofux.com) by Jon Yablonski.

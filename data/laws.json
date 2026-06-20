@@ -2,6 +2,16 @@
   "title": "Laws of AI Agents",
   "subtitle": "Hard-won heuristics for building agents that actually work.",
   "intro": "Not proven theorems — field notes. Every law here comes from something that bit me while shipping agents. Inspired by the format of Laws of UX, but the scars are my own.",
+  "site": {
+    "url": "https://laws.deleg8.dev",
+    "name": "Laws of AI Agents",
+    "description": "A field guide of hard-won heuristics for building AI agents that actually work — covering context, reliability, scope, trust, and multi-agent coordination. Inspired by the format of Laws of UX.",
+    "author": "Sabir Salah",
+    "keywords": "AI agents, LLM agents, agent design, agent reliability, prompt engineering, tool use, multi-agent systems, agentic workflows, building AI agents, agent architecture, context engineering, laws of AI agents",
+    "ogImage": "https://laws.deleg8.dev/og-image.png",
+    "locale": "en_US",
+    "twitter": "@sabirmgd"
+  },
   "categories": [
     {
       "id": "context-reliability",
