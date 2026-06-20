@@ -13,6 +13,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const DATA = JSON.parse(readFileSync(join(ROOT, "data/laws.json"), "utf8"));
 const EX = JSON.parse(readFileSync(join(ROOT, "data/examples.json"), "utf8"));
+const DEEP = JSON.parse(readFileSync(join(ROOT, "data/deep.json"), "utf8"));
 const OUTDIR = join(ROOT, "pdf");
 
 const esc = (s = "") => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -43,6 +44,15 @@ const lawsByCat = (id) => DATA.laws.filter((l) => l.category === id);
 function lawBlock(l) {
   const c = catById[l.category];
   const ex = EX[l.name] || "";
+  const d = DEEP[l.name] || {};
+  const signals = (d.signals || []).map((s) => `<li>${txt(s)}</li>`).join("");
+  const apply = (d.apply || []).map((s) => `<li>${txt(s)}</li>`).join("");
+  const sources = [];
+  if (l.source?.url) sources.push(l.source);
+  (d.extra_refs || []).forEach((r) => sources.push(r));
+  const sourcesHtml = sources
+    .map((s) => `<li><a href="${esc(s.url)}">${txt(s.title)}${s.author ? " · " + txt(s.author) : ""}</a></li>`)
+    .join("");
   return `<article class="law" style="--ac:${c.accent}">
     <div class="law__head">
       <span class="law__no">${pad(l.number)}</span>
@@ -53,13 +63,18 @@ function lawBlock(l) {
     <div class="law__body">
       <p class="lbl">The principle</p>
       <p class="bd">${txt(l.principle)}</p>
-      <p class="lbl">The takeaway</p>
-      <p class="bd">${txt(l.takeaway)}</p>
+      ${d.depth ? `<p class="lbl">Why it happens</p><p class="bd">${txt(d.depth)}</p>` : ""}
+      ${signals ? `<p class="lbl">Watch for</p><ul class="ul">${signals}</ul>` : ""}
       <div class="practice">
         <p class="lbl lbl--ac">In practice</p>
         <p class="bd">${txt(ex)}</p>
       </div>
-      ${l.source?.url ? `<p class="src">Source: <a href="${esc(l.source.url)}">${txt(l.source.title)}${l.source.author ? " · " + txt(l.source.author) : ""}</a></p>` : ""}
+      ${apply ? `<p class="lbl lbl--ac">Apply it</p><ol class="ol">${apply}</ol>` : ""}
+      <div class="takeaway">
+        <p class="lbl lbl--ac">The takeaway</p>
+        <p class="bd">${txt(l.takeaway)}</p>
+      </div>
+      ${sourcesHtml ? `<p class="lbl">Sources and further reading</p><ul class="srcs">${sourcesHtml}</ul>` : ""}
     </div>
   </article>`;
 }
@@ -148,21 +163,33 @@ const html = `<!DOCTYPE html>
   .divider__range { font-family:var(--mono); font-size:9.5pt; color:#9aa0ac; margin-top:6mm; }
 
   /* LAW */
-  .law { break-inside:avoid; padding:6mm 0 5mm; border-bottom:1px solid #ececef; }
+  .law { page-break-before:always; padding-top:3mm; }
   .law__head { display:flex; align-items:center; gap:4mm; margin-bottom:2mm; }
   .law__no { font-family:var(--mono); font-weight:600; font-size:11pt; color:var(--ac); }
   .law__tag { font-family:var(--mono); font-size:7.6pt; letter-spacing:0.05em; text-transform:uppercase; font-weight:600;
     color:var(--ac); background:color-mix(in srgb, var(--ac) 13%, transparent); border:1px solid color-mix(in srgb, var(--ac) 26%, transparent); padding:1mm 2.4mm; border-radius:99px; }
   .law__name { font-family:var(--serif); font-weight:500; font-size:19pt; letter-spacing:-0.01em; line-height:1.1; }
   .law__tagline { font-family:var(--serif); font-style:italic; font-size:12.5pt; color:var(--ac); margin-top:1.5mm; margin-bottom:3.5mm; }
-  .lbl { font-family:var(--mono); font-size:7.8pt; letter-spacing:0.1em; text-transform:uppercase; color:#9298a4; font-weight:600; margin-top:3mm; margin-bottom:1mm; }
+  .lbl { font-family:var(--mono); font-size:7.8pt; letter-spacing:0.1em; text-transform:uppercase; color:#9298a4; font-weight:600; margin-top:3.4mm; margin-bottom:1.2mm; break-after:avoid; }
   .lbl--ac { color:var(--ac); }
   .bd { font-size:10.2pt; color:#33363f; line-height:1.55; }
+  .ul, .ol { margin:0 0 0 4.5mm; }
+  .ul li, .ol li { font-size:10pt; color:#33363f; line-height:1.5; margin-bottom:1mm; padding-left:1mm; }
+  .ul li { list-style:none; position:relative; }
+  .ul li::before { content:""; position:absolute; left:-3mm; top:2.1mm; width:1.5mm; height:1.5mm; border-radius:50%; background:var(--ac); }
+  .ol { list-style:none; counter-reset:ap; margin-left:0; }
+  .ol li { position:relative; padding-left:7mm; margin-bottom:1.4mm; }
+  .ol li::before { counter-increment:ap; content:counter(ap); position:absolute; left:0; top:0; width:4.6mm; height:4.6mm; border-radius:50%;
+    background:color-mix(in srgb, var(--ac) 16%, transparent); color:var(--ac); font-family:var(--mono); font-size:7.5pt; font-weight:600; display:grid; place-items:center; }
   .practice { margin-top:3.5mm; padding:3.5mm 4mm; border-radius:3mm; background:color-mix(in srgb, var(--ac) 7%, #fff);
-    border:1px solid color-mix(in srgb, var(--ac) 20%, transparent); border-left:2.5pt solid var(--ac); }
+    border:1px solid color-mix(in srgb, var(--ac) 20%, transparent); border-left:2.5pt solid var(--ac); break-inside:avoid; }
   .practice .bd { color:#3a3d46; }
-  .src { font-family:var(--mono); font-size:8pt; color:#8a8f9c; margin-top:3mm; }
-  .src a { color:var(--ac); }
+  .takeaway { margin-top:3.5mm; padding:3.2mm 4mm; border-radius:3mm; background:#f4f5f7; border-left:2.5pt solid var(--ac); break-inside:avoid; }
+  .takeaway .bd { color:#2a2d35; font-weight:450; }
+  .srcs { list-style:none; margin:1mm 0 0; }
+  .srcs li { font-family:var(--mono); font-size:8pt; color:#8a8f9c; line-height:1.45; margin-bottom:0.8mm; padding-left:4mm; position:relative; }
+  .srcs li::before { content:"\\2197"; position:absolute; left:0; color:var(--ac); }
+  .srcs a { color:var(--ac); }
 
   /* REFS */
   .refs { page-break-before:always; padding-top:6mm; }
@@ -186,7 +213,7 @@ const html = `<!DOCTYPE html>
     <p class="cover__eyebrow">The Expanded Field Guide</p>
     <h1 class="cover__title">Laws of AI&nbsp;Agents</h1>
     <p class="cover__sub">${esc(DATA.subtitle)}</p>
-    <p class="cover__meta">50 laws · 10 categories · every law sourced · with worked examples</p>
+    <p class="cover__meta">50 laws · the mechanism · warning signs · apply-it recipes · 100+ sources</p>
     <div class="cover__dots">${dots}</div>
     <div class="cover__by"><span>By ${esc(SITE.author)}</span><span>laws.deleg8.dev</span></div>
   </div></div>
@@ -195,7 +222,7 @@ const html = `<!DOCTYPE html>
     <h2 class="page-h">What this is</h2>
     <p class="lead">${txt(DATA.intro)}</p>
     <h3>How to read it</h3>
-    <p>Each law has four parts. <strong>The principle</strong> is why it is true. <strong>The takeaway</strong> is what to do about it. <strong>In practice</strong> is a concrete scenario where it bites and how to handle it. <strong>Source</strong> is where the idea comes from, so you can go deeper.</p>
+    <p>Each law is laid out the same way. <strong>The principle</strong> is why it is true. <strong>Why it happens</strong> is the mechanism underneath, grounded in real research. <strong>Watch for</strong> lists the warning signs you are violating it. <strong>In practice</strong> is a concrete scenario where it bites and how to handle it. <strong>Apply it</strong> is a short, framework-independent recipe. <strong>The takeaway</strong> is the one-line version. <strong>Sources and further reading</strong> point you deeper.</p>
     <h3>How to use it</h3>
     <p>You do not need to read it cover to cover. Skim the categories, find the failure mode you are living right now, and apply the takeaway. Come back when the next one bites. These are heuristics earned from shipping agents, not theorems, so treat them as defaults you can override with good reason.</p>
     <h3>The ten parts</h3>
