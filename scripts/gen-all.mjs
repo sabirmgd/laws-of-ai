@@ -36,7 +36,9 @@ const CFG = {
     build: (ac, scene) =>
       `Clean editorial infographic diagram that clearly EXPLAINS a concept from a book about AI agents, ` +
       `like a beautiful didactic explainer. Off-white #faf9f7 background, thin precise line work, generous spacing, ` +
-      `square 1:1 composition. Accent color ${ac} for emphasis, dark grey #33363f for text, soft greys for secondary detail. ` +
+      `square 1:1 composition. The single dominant accent color must be EXACTLY ${ac} — use it for the key highlighted shapes, fills, frames and primary arrows, and make sure it clearly reads as this exact hue (do NOT drift to teal, green, red or any other hue unless that IS the accent). ` +
+      `Secondary elements are dark grey #33363f for text and soft neutral greys on the off-white background. ` +
+      `You may use a small green check for "correct" and a small red cross for "incorrect" ONLY where the diagram explicitly contrasts right versus wrong; every other colored element must use the accent ${ac}. ` +
       `Use arrows to show flow and cause-and-effect. ` +
       `Use ONLY the short functional text labels specified below (1 to 3 words each, modern sans-serif, spelled correctly). ` +
       `Do NOT add any title, heading, subtitle, caption, author name, book name, source citation, copyright line, ` +
