@@ -1,0 +1,107 @@
+{
+  "title": "Laws of AI Agents",
+  "subtitle": "Hard-won heuristics for building agents that actually work.",
+  "intro": "Not proven theorems — field notes. Every law here comes from something that bit me while shipping agents. Inspired by the format of Laws of UX, but the scars are my own.",
+  "categories": [
+    {
+      "id": "context-reliability",
+      "name": "Context & Reliability",
+      "blurb": "What makes agents work or fail.",
+      "accent": "#7c9cff"
+    },
+    {
+      "id": "scope-design",
+      "name": "Scope & Design",
+      "blurb": "How you shape the agent.",
+      "accent": "#5ed3a8"
+    },
+    {
+      "id": "trust-coordination",
+      "name": "Trust & Coordination",
+      "blurb": "Humans and other agents.",
+      "accent": "#f5a87a"
+    }
+  ],
+  "laws": [
+    {
+      "number": 1,
+      "name": "Law of Context Decay",
+      "category": "context-reliability",
+      "tagline": "Agents fail at context, not reasoning.",
+      "principle": "Most bad outputs trace to missing, stale, or poisoned context — not a dumb model. The model is usually smart enough; it was just working from the wrong picture of the world.",
+      "takeaway": "Before blaming the model, audit what it could actually see. Fix the context window before you reach for a bigger model."
+    },
+    {
+      "number": 2,
+      "name": "The Tool Description Is the Prompt",
+      "category": "context-reliability",
+      "tagline": "An agent is only as capable as its tools are legible.",
+      "principle": "Vague tool descriptions cause more failures than vague instructions. The agent decides what to call based on how the tool reads, not on what it actually does.",
+      "takeaway": "Write tool descriptions like you are onboarding a new engineer: what it does, when to use it, what it returns, what it costs."
+    },
+    {
+      "number": 3,
+      "name": "Compounding Error Law",
+      "category": "context-reliability",
+      "tagline": "Reliability multiplies, it doesn't add.",
+      "principle": "A 95% step run ten times is a coin flip. Every added step lowers the ceiling, and the failures don't announce themselves — they quietly accumulate until the final answer is wrong.",
+      "takeaway": "Count your steps. Shorten the chain, raise per-step reliability, or checkpoint so a bad step can't poison the rest."
+    },
+    {
+      "number": 4,
+      "name": "Narrow Beats General",
+      "category": "scope-design",
+      "tagline": "A scoped agent with three tools beats a generalist with thirty.",
+      "principle": "Capability surface is liability surface. Every extra tool is another way to pick wrong, another branch to test, another failure to debug.",
+      "takeaway": "Start narrow. Add a tool only when a real task demands it, not because it might be useful someday."
+    },
+    {
+      "number": 5,
+      "name": "Determinism at the Edges",
+      "category": "context-reliability",
+      "tagline": "Model in the middle, code at the boundaries.",
+      "principle": "Validation, schemas, retries, and routing are not the LLM's job. The model is for judgment; deterministic code is for everything that must be correct every time.",
+      "takeaway": "Wrap the model in code you can trust. Let it reason, but never let it be the thing that guarantees a contract."
+    },
+    {
+      "number": 6,
+      "name": "The Model Optimizes for Looking Done",
+      "category": "context-reliability",
+      "tagline": "Agents declare victory early.",
+      "principle": "They'll write the summary before doing the work unless forced to prove it. \"Looking finished\" is cheaper than being finished, and the model will take the cheaper path.",
+      "takeaway": "Demand evidence, not assertions. Make the agent show the artifact — the test pass, the file, the diff — before it claims success."
+    },
+    {
+      "number": 7,
+      "name": "Observability Precedes Autonomy",
+      "category": "scope-design",
+      "tagline": "You can't grant autonomy you can't trace.",
+      "principle": "No traces, no trust. If you can't see what the agent did and why, you can't safely let it act on its own — you're just hoping.",
+      "takeaway": "Build the trace before the autonomy. Every decision, tool call, and input should be inspectable after the fact."
+    },
+    {
+      "number": 8,
+      "name": "The Handoff Is the Hard Part",
+      "category": "trust-coordination",
+      "tagline": "In multi-agent systems, failures live in the seams.",
+      "principle": "What gets passed, what gets dropped, who owns state — the bug is rarely inside an agent, it's between them. Each agent looks fine in isolation and the system still breaks.",
+      "takeaway": "Design the contract at every handoff. Make state ownership explicit and validate what crosses the boundary."
+    },
+    {
+      "number": 9,
+      "name": "Trust Is Calibrated, Not Granted",
+      "category": "trust-coordination",
+      "tagline": "Users extend autonomy in proportion to track record.",
+      "principle": "Trust is earned on reversible actions before irreversible ones. People don't hand an agent the keys on day one — they widen the leash as it proves itself.",
+      "takeaway": "Earn autonomy incrementally. Start with reversible, low-stakes actions and expand the blast radius only as reliability is demonstrated."
+    },
+    {
+      "number": 10,
+      "name": "The Escape Hatch Law",
+      "category": "trust-coordination",
+      "tagline": "No clean path to a human means a hallucinated one.",
+      "principle": "An agent with no clean \"hand to a human\" path will invent a path instead. Cornered without an exit, it fabricates an answer rather than admitting it's stuck.",
+      "takeaway": "Always give the agent a way out. A first-class \"I need a human\" action beats a confident wrong answer every time."
+    }
+  ]
+}
