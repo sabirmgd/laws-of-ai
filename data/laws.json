@@ -1,13 +1,14 @@
 {
   "title": "Laws of AI Agents",
   "subtitle": "Hard-won heuristics for building agents that actually work.",
-  "intro": "Not proven theorems — field notes. Every law here comes from something that bit me while shipping agents. Inspired by the format of Laws of UX, but the scars are my own.",
+  "intro": "Not proven theorems — field notes. Every law here comes from something that bit me while shipping agents. They're model-agnostic: principles about context, instruction, scope, and trust that hold whatever you're building on. Inspired by the format of Laws of UX, but the scars are my own.",
   "site": {
     "url": "https://laws.deleg8.dev",
     "name": "Laws of AI Agents",
-    "description": "A field guide of hard-won heuristics for building AI agents that actually work — covering context, reliability, scope, trust, and multi-agent coordination. Inspired by the format of Laws of UX.",
+    "version": "v2",
+    "description": "A field guide of hard-won, model-agnostic heuristics for building AI agents that actually work — covering context, reliability, instruction, scope, trust, and multi-agent coordination. Inspired by the format of Laws of UX.",
     "author": "Sabir Salah",
-    "keywords": "AI agents, LLM agents, agent design, agent reliability, prompt engineering, tool use, multi-agent systems, agentic workflows, building AI agents, agent architecture, context engineering, laws of AI agents",
+    "keywords": "AI agents, LLM agents, agent design, agent reliability, prompt engineering, tool design, multi-agent systems, agentic workflows, building AI agents, agent architecture, context engineering, structured output, laws of AI agents",
     "ogImage": "https://laws.deleg8.dev/og-image.png",
     "locale": "en_US",
     "twitter": "@sabirmgd"
@@ -16,20 +17,30 @@
     {
       "id": "context-reliability",
       "name": "Context & Reliability",
-      "blurb": "What makes agents work or fail.",
-      "accent": "#7c9cff"
+      "blurb": "How agents see the world, and where they break.",
+      "accent": "#7c9cff",
+      "icon": "pulse"
     },
     {
       "id": "scope-design",
       "name": "Scope & Design",
       "blurb": "How you shape the agent.",
-      "accent": "#5ed3a8"
+      "accent": "#5ed3a8",
+      "icon": "target"
+    },
+    {
+      "id": "instruction-output",
+      "name": "Instruction & Output",
+      "blurb": "How you tell it what to do, and trust what comes back.",
+      "accent": "#f5b95e",
+      "icon": "command"
     },
     {
       "id": "trust-coordination",
       "name": "Trust & Coordination",
-      "blurb": "Humans and other agents.",
-      "accent": "#f5a87a"
+      "blurb": "Working with humans and other agents.",
+      "accent": "#b89cff",
+      "icon": "nodes"
     }
   ],
   "laws": [
@@ -38,80 +49,222 @@
       "name": "Law of Context Decay",
       "category": "context-reliability",
       "tagline": "Agents fail at context, not reasoning.",
-      "principle": "Most bad outputs trace to missing, stale, or poisoned context — not a dumb model. The model is usually smart enough; it was just working from the wrong picture of the world.",
-      "takeaway": "Before blaming the model, audit what it could actually see. Fix the context window before you reach for a bigger model."
+      "principle": "Most bad outputs trace to missing, stale, or poisoned context — not a model that can't think. The model is usually smart enough; it was just reasoning over the wrong picture of the world. Garbage context produces confident garbage, and the confidence is exactly what makes it dangerous.",
+      "takeaway": "Before you reach for a bigger model, audit what the agent could actually see. Curate the context window deliberately — fresh, relevant, free of contradictions — and most 'reasoning' failures quietly disappear."
     },
     {
       "number": 2,
-      "name": "The Tool Description Is the Prompt",
-      "category": "context-reliability",
-      "tagline": "An agent is only as capable as its tools are legible.",
-      "principle": "Vague tool descriptions cause more failures than vague instructions. The agent decides what to call based on how the tool reads, not on what it actually does.",
-      "takeaway": "Write tool descriptions like you are onboarding a new engineer: what it does, when to use it, what it returns, what it costs."
-    },
-    {
-      "number": 3,
       "name": "Compounding Error Law",
       "category": "context-reliability",
       "tagline": "Reliability multiplies, it doesn't add.",
-      "principle": "A 95% step run ten times is a coin flip. Every added step lowers the ceiling, and the failures don't announce themselves — they quietly accumulate until the final answer is wrong.",
-      "takeaway": "Count your steps. Shorten the chain, raise per-step reliability, or checkpoint so a bad step can't poison the rest."
+      "principle": "A step that's 95% reliable, run ten times in sequence, lands correct only about 60% of the time. The failures don't announce themselves — they accumulate quietly until the final answer is wrong and you can't tell which step broke it. Every link you add lowers the ceiling of the whole chain.",
+      "takeaway": "Count your steps. Shorten the chain, raise per-step reliability, and checkpoint between stages so a single bad step can't silently poison everything downstream."
+    },
+    {
+      "number": 3,
+      "name": "Position Is Power",
+      "category": "context-reliability",
+      "tagline": "Models read the edges; the middle gets lost.",
+      "principle": "Given a long input, a model attends most reliably to the very beginning and the very end. Critical facts buried in the middle quietly lose their grip — present but functionally ignored. The information was technically 'in context' and still got missed, which is the worst kind of bug because nothing looks wrong.",
+      "takeaway": "Put the most important instructions and findings at the top or the bottom. Lead with a summary, structure with explicit headers, and never assume that 'in the context' means 'actually used'."
     },
     {
       "number": 4,
-      "name": "Narrow Beats General",
-      "category": "scope-design",
-      "tagline": "A scoped agent with three tools beats a generalist with thirty.",
-      "principle": "Capability surface is liability surface. Every extra tool is another way to pick wrong, another branch to test, another failure to debug.",
-      "takeaway": "Start narrow. Add a tool only when a real task demands it, not because it might be useful someday."
-    },
-    {
-      "number": 5,
-      "name": "Determinism at the Edges",
-      "category": "context-reliability",
-      "tagline": "Model in the middle, code at the boundaries.",
-      "principle": "Validation, schemas, retries, and routing are not the LLM's job. The model is for judgment; deterministic code is for everything that must be correct every time.",
-      "takeaway": "Wrap the model in code you can trust. Let it reason, but never let it be the thing that guarantees a contract."
-    },
-    {
-      "number": 6,
       "name": "The Model Optimizes for Looking Done",
       "category": "context-reliability",
       "tagline": "Agents declare victory early.",
-      "principle": "They'll write the summary before doing the work unless forced to prove it. \"Looking finished\" is cheaper than being finished, and the model will take the cheaper path.",
-      "takeaway": "Demand evidence, not assertions. Make the agent show the artifact — the test pass, the file, the diff — before it claims success."
+      "principle": "An agent will write the summary before doing the work if you let it. 'Looking finished' is cheaper than being finished, so the model drifts toward the cheaper path — a plausible report, a confident 'done', an untested claim of success. The output reads complete; the work isn't.",
+      "takeaway": "Demand evidence, not assertions. Make the agent produce the artifact — the passing test, the diff, the file, the citation — before it's allowed to claim success. Verify the proof, not the promise."
+    },
+    {
+      "number": 5,
+      "name": "Design for the Worst Case",
+      "category": "context-reliability",
+      "tagline": "Plan around the ceiling, not the average.",
+      "principle": "When a system says 'up to 24 hours', 'may retry', or 'no guaranteed latency', those bounds are the numbers that matter. Designing around the typical case works right up until the tail event — which is precisely when failure is most expensive. Averages are for marketing; guarantees are built on worst cases.",
+      "takeaway": "Whenever you're handed a maximum or a 'may', do the math against the ceiling. Size timeouts, retry budgets, and SLAs for the worst plausible run, not the one you usually see."
+    },
+    {
+      "number": 6,
+      "name": "Narrow Beats General",
+      "category": "scope-design",
+      "tagline": "Three sharp tools beat thirty dull ones.",
+      "principle": "A scoped agent with a handful of well-chosen tools outperforms a generalist drowning in options. Every extra tool is another way to choose wrong, another branch to test, another failure to debug. Capability surface is liability surface — breadth you don't need is just risk you took on.",
+      "takeaway": "Start narrow. Add a tool only when a real task demands it, not because it might be handy someday. When selection gets unreliable, the first move is usually fewer tools, not better instructions."
     },
     {
       "number": 7,
-      "name": "Observability Precedes Autonomy",
+      "name": "Determinism at the Edges",
       "category": "scope-design",
-      "tagline": "You can't grant autonomy you can't trace.",
-      "principle": "No traces, no trust. If you can't see what the agent did and why, you can't safely let it act on its own — you're just hoping.",
-      "takeaway": "Build the trace before the autonomy. Every decision, tool call, and input should be inspectable after the fact."
+      "tagline": "Model in the middle, code at the boundaries.",
+      "principle": "Validation, schema enforcement, retries, routing, and access control are not the model's job — they're code's job. The model is for judgment under ambiguity; deterministic code is for everything that must be correct every single time. Asking a probabilistic system to guarantee a contract is asking for the 0.1% that ruins you.",
+      "takeaway": "Wrap the model in code you can trust. Let it reason in the soft middle, but put a deterministic shell around the inputs and outputs so the hard guarantees never ride on a sampling roll."
     },
     {
       "number": 8,
-      "name": "The Handoff Is the Hard Part",
-      "category": "trust-coordination",
-      "tagline": "In multi-agent systems, failures live in the seams.",
-      "principle": "What gets passed, what gets dropped, who owns state — the bug is rarely inside an agent, it's between them. Each agent looks fine in isolation and the system still breaks.",
-      "takeaway": "Design the contract at every handoff. Make state ownership explicit and validate what crosses the boundary."
+      "name": "Observability Precedes Autonomy",
+      "category": "scope-design",
+      "tagline": "You can't grant autonomy you can't trace.",
+      "principle": "If you can't see what the agent did and why — every decision, tool call, and input — you can't safely let it act on its own. You're not trusting it; you're hoping. Autonomy without a trace is just an outage you haven't found yet, and when it breaks you'll have no way to learn why.",
+      "takeaway": "Build the trace before you grant the freedom. Make every step inspectable after the fact, then widen autonomy only as far as your visibility actually reaches."
     },
     {
       "number": 9,
-      "name": "Trust Is Calibrated, Not Granted",
-      "category": "trust-coordination",
-      "tagline": "Users extend autonomy in proportion to track record.",
-      "principle": "Trust is earned on reversible actions before irreversible ones. People don't hand an agent the keys on day one — they widen the leash as it proves itself.",
-      "takeaway": "Earn autonomy incrementally. Start with reversible, low-stakes actions and expand the blast radius only as reliability is demonstrated."
+      "name": "Decompose Before You Scale",
+      "category": "scope-design",
+      "tagline": "When it's unreliable, split it — don't supersize it.",
+      "principle": "When output is inconsistent, the instinct is to throw more at the same shape: a bigger model, a longer context, more tokens. That rarely fixes a structural problem — it just dilutes attention further. Splitting the task into focused, single-purpose passes almost always beats making one overloaded pass smarter.",
+      "takeaway": "Break the work into stages that each do one thing well — analyze per-item, then reconcile across items. A focused pass beats a heroic pass trying to do everything at once."
     },
     {
       "number": 10,
+      "name": "The Cheapest Fix First",
+      "category": "scope-design",
+      "tagline": "Reach for the prompt before the platform.",
+      "principle": "When something misbehaves, the cheapest fix that addresses the root cause usually wins — and it's usually clearer instructions, a better tool description, or a concrete example, not a new classifier, preprocessing layer, or pipeline. Infrastructure feels like progress but often just wraps an unsolved prompt in more surface area.",
+      "takeaway": "Exhaust the prompt-level fixes before you build systems. Only add infrastructure once you've proven that words, examples, and scoping genuinely can't close the gap."
+    },
+    {
+      "number": 11,
+      "name": "The Tool Description Is the Prompt",
+      "category": "instruction-output",
+      "tagline": "An agent is only as capable as its tools are legible.",
+      "principle": "The agent decides what to call based on how a tool reads, not on what it actually does. A vague description — 'searches the database' — gets passed over for a tool the model understands better, even a worse one. Thin tool descriptions cause more failures than thin instructions ever do.",
+      "takeaway": "Write tool descriptions like you're onboarding a sharp new engineer: what it does, when to use it (and when not to), what it expects, what it returns. The description is the interface the model actually reasons over."
+    },
+    {
+      "number": 12,
+      "name": "Show, Don't Tell",
+      "category": "instruction-output",
+      "tagline": "When prose fails, stop writing prose.",
+      "principle": "If an instruction has produced the wrong result twice, writing it a third time — more precisely — rarely helps, because prose is always interpretable. Two or three concrete input/output examples eliminate the ambiguity that no amount of careful description can. Examples demonstrate the rule; prose only describes it.",
+      "takeaway": "When results are inconsistent, switch from describing to demonstrating. Show worked examples — especially the edge cases and the 'leave it blank' cases — and let the model generalize from them."
+    },
+    {
+      "number": 13,
+      "name": "Confidence Is Not Calibrated",
+      "category": "instruction-output",
+      "tagline": "A model's certainty is not evidence.",
+      "principle": "Models are routinely confident and wrong, and unconfident and right. Routing decisions on self-reported confidence inherits that miscalibration. 'Only flag high-confidence issues' or 'be conservative' just moves the noise around — it doesn't reduce it, because the confidence itself is the unreliable signal.",
+      "takeaway": "Replace confidence thresholds and vague hedges with explicit, categorical criteria: what specifically counts as in, what specifically counts as out, with an example of each. Specificity beats self-assessed certainty every time."
+    },
+    {
+      "number": 14,
+      "name": "Surface Ambiguity, Don't Resolve It",
+      "category": "instruction-output",
+      "tagline": "When the data is unclear, don't guess confidently.",
+      "principle": "Faced with two plausible matches, conflicting sources, or a missing field, an agent's instinct is to pick the 'most likely' option and move on — a confident choice that silently buries the doubt. When the stakes touch identity, money, or anything irreversible, a quiet wrong guess is far worse than an honest 'this is unclear'.",
+      "takeaway": "Make the agent escalate ambiguity instead of papering over it: ask for another identifier, preserve both conflicting values with their sources, flag the conflict for a human. Surface the doubt to whoever can actually resolve it."
+    },
+    {
+      "number": 15,
+      "name": "Averages Lie",
+      "category": "instruction-output",
+      "tagline": "97% overall can hide a 60% segment.",
+      "principle": "An aggregate metric is a blended story that smooths over exactly the failures you most need to see. A system at 97% overall can be 99% on easy cases and 60% on the rare, hard segment where errors actually cluster. Trust the headline and you'll automate straight into the cracks it's hiding.",
+      "takeaway": "Slice before you trust. Break performance down by type, segment, and field, and require every slice to clear the bar before you act on the average. Sample deliberately for the rare cases, not just randomly."
+    },
+    {
+      "number": 16,
+      "name": "The Handoff Is the Hard Part",
+      "category": "trust-coordination",
+      "tagline": "In multi-agent systems, failures live in the seams.",
+      "principle": "Each agent can be flawless in isolation and the system still breaks — because the bug lives between them: what got passed, what got dropped, who owned the state. Sub-agents don't inherit context automatically; anything not explicitly handed over simply doesn't exist on the other side.",
+      "takeaway": "Design the contract at every boundary. Pass everything the next agent needs explicitly in its instructions, make state ownership unambiguous, and validate what crosses the seam instead of assuming it survived."
+    },
+    {
+      "number": 17,
+      "name": "Trust Is Calibrated, Not Granted",
+      "category": "trust-coordination",
+      "tagline": "Autonomy is earned in proportion to track record.",
+      "principle": "People extend an agent freedom the way they extend it to a new hire — incrementally, on reversible things first, widening the leash only as it proves itself. Granting broad, irreversible authority on day one isn't trust; it's a bet. Trust is a function of demonstrated reliability, not of how capable the system looks.",
+      "takeaway": "Start the agent on low-stakes, reversible actions and expand its blast radius only as reliability is proven. Let the track record, not the demo, decide how much rope it gets."
+    },
+    {
+      "number": 18,
       "name": "The Escape Hatch Law",
       "category": "trust-coordination",
-      "tagline": "No clean path to a human means a hallucinated one.",
-      "principle": "An agent with no clean \"hand to a human\" path will invent a path instead. Cornered without an exit, it fabricates an answer rather than admitting it's stuck.",
-      "takeaway": "Always give the agent a way out. A first-class \"I need a human\" action beats a confident wrong answer every time."
+      "tagline": "No clean exit means a fabricated one.",
+      "principle": "An agent with no legitimate way to say 'I'm stuck' or 'hand this to a human' will invent a path instead. Cornered without an exit — or forced to fill a required field it has no answer for — it fabricates something plausible rather than admitting the gap. A confident hallucination is the default when honesty isn't an option.",
+      "takeaway": "Always give the agent a first-class way out: an 'escalate to human' action, a nullable field, an explicit 'unknown'. Make 'I don't know' a valid, easy answer and you trade fabrications for honest gaps."
+    },
+    {
+      "number": 19,
+      "name": "Don't Let the Author Be the Judge",
+      "category": "trust-coordination",
+      "tagline": "The thing that made it shouldn't grade it.",
+      "principle": "An agent reviewing its own work is biased toward defending the choices it just made — it still holds the reasoning, the shortcuts, the assumptions, and it won't question them. A fresh reviewer with no stake in the original reasoning catches what the author is constitutionally blind to.",
+      "takeaway": "Separate generation from judgment. Use an independent instance — fresh context, no memory of the original reasoning — to review, verify, or critique. Independence catches what self-review structurally can't."
+    },
+    {
+      "number": 20,
+      "name": "Preserve Provenance",
+      "category": "trust-coordination",
+      "tagline": "Don't lose where a fact came from.",
+      "principle": "When findings get summarized and re-summarized, the claim survives but its source, its date, and its uncertainty quietly fall away — until you're holding an assertion you can't verify or defend. Two sources disagreeing isn't noise to flatten; it's signal to keep. A fact without provenance is a rumor with good posture.",
+      "takeaway": "Carry attribution through every transformation: claim, source, date, confidence. Preserve conflicts with both sides attributed instead of silently picking a winner, so downstream can audit, weigh, and trust."
+    }
+  ],
+  "references": [
+    {
+      "title": "Building Effective Agents",
+      "source": "Anthropic Engineering",
+      "url": "https://www.anthropic.com/engineering/building-effective-agents",
+      "note": "The foundational map of agent patterns — when a simple workflow beats an agent, and when to add complexity at all. Underpins Narrow Beats General and The Cheapest Fix First."
+    },
+    {
+      "title": "How We Built Our Multi-Agent Research System",
+      "source": "Anthropic Engineering",
+      "url": "https://www.anthropic.com/engineering/built-multi-agent-research-system",
+      "note": "A candid look at coordinator / sub-agent design: delegation, parallelism, and why the hard bugs live in the handoffs between agents."
+    },
+    {
+      "title": "Effective Context Engineering for AI Agents",
+      "source": "Anthropic Engineering",
+      "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents",
+      "note": "How to curate the context window — what to keep, what to drop, and why more context often hurts. Backs Context Decay and Position Is Power."
+    },
+    {
+      "title": "Writing Tools for Agents",
+      "source": "Anthropic Engineering",
+      "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+      "note": "Why tool descriptions are the real interface the model reasons over, and how to write them so the right tool actually gets picked."
+    },
+    {
+      "title": "Lost in the Middle: How Language Models Use Long Contexts",
+      "source": "Liu et al., 2023",
+      "url": "https://arxiv.org/abs/2307.03172",
+      "note": "The empirical basis for Position Is Power — models reliably use the start and end of long inputs and lose the middle."
+    },
+    {
+      "title": "ReAct: Synergizing Reasoning and Acting in Language Models",
+      "source": "Yao et al., 2022",
+      "url": "https://arxiv.org/abs/2210.03629",
+      "note": "The reason–act loop underneath most agents. Useful for seeing where determinism and observability belong in the cycle."
+    },
+    {
+      "title": "Reflexion: Language Agents with Verbal Reinforcement Learning",
+      "source": "Shinn et al., 2023",
+      "url": "https://arxiv.org/abs/2303.11366",
+      "note": "Self-critique and reflection loops, and their limits. Context for why an independent reviewer beats self-review."
+    },
+    {
+      "title": "Model Context Protocol",
+      "source": "Open standard",
+      "url": "https://modelcontextprotocol.io/introduction",
+      "note": "An open standard for connecting agents to tools and data, with a clean tools-vs-resources distinction worth internalizing."
+    },
+    {
+      "title": "Prompt Engineering Overview",
+      "source": "Anthropic Docs",
+      "url": "https://docs.claude.com/en/docs/build-with-claude/prompt-engineering/overview",
+      "note": "Practical techniques behind Show, Don't Tell and explicit criteria — examples, structure, and specificity over prose."
+    },
+    {
+      "title": "Laws of UX",
+      "source": "Jon Yablonski",
+      "url": "https://lawsofux.com",
+      "note": "The format that inspired this deck: durable principles, one card each, named and memorable."
     }
   ]
 }

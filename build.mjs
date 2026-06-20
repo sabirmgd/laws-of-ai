@@ -4,8 +4,8 @@
  *
  * Reads data/laws.json and the static assets in src/, then emits a fully
  * pre-rendered, SEO-optimized site into dist/:
- *   - index.html   server-rendered cards (crawlable without JS) + meta + JSON-LD
- *   - sitemap.xml  home + one deep-link per law
+ *   - index.html   server-rendered cards + references (crawlable) + meta + JSON-LD
+ *   - sitemap.xml  home + one deep-link per law + references
  *   - robots.txt   allow-all, points at the sitemap
  *   - laws.json    raw data (handy as a tiny public API)
  *   - styles.css / app.js / favicon.svg / og-image.png  copied through
@@ -33,8 +33,23 @@ const esc = (s = "") =>
 const slugify = (s) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
+const pad = (n) => String(n).padStart(2, "0");
+
 const catById = Object.fromEntries(DATA.categories.map((c) => [c.id, c]));
 const laws = DATA.laws.map((l) => ({ ...l, slug: slugify(l.name) }));
+const refs = DATA.references || [];
+
+// ---------- category icons (line, currentColor) ----------
+const ICON_PATHS = {
+  pulse: '<path d="M3 12h4l2.4-7 4.2 14 2.4-7H21"/>',
+  target: '<circle cx="12" cy="12" r="8.2"/><circle cx="12" cy="12" r="3.6"/><circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none"/>',
+  command: '<path d="M5 8.5l3.8 3.5L5 15.5"/><path d="M12.5 16h6.5"/>',
+  nodes: '<circle cx="6" cy="7" r="2.2"/><circle cx="18" cy="7" r="2.2"/><circle cx="12" cy="17" r="2.2"/><path d="M7.8 8.6l2.6 6.4M16.2 8.6l-2.6 6.4M8.2 7h7.6"/>',
+};
+const icon = (id) =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_PATHS[id] || ""}</svg>`;
+
+const arrow = '<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';
 
 // ---------- JSON-LD structured data ----------
 function jsonLd() {
@@ -61,6 +76,7 @@ function jsonLd() {
       description: SITE.description,
       inLanguage: "en",
       author: { "@type": "Person", name: SITE.author },
+      citation: refs.map((r) => ({ "@type": "CreativeWork", name: r.title, url: r.url })),
     },
     {
       "@type": "DefinedTermSet",
@@ -91,13 +107,12 @@ function jsonLd() {
 function cardHtml(l) {
   const cat = catById[l.category] || {};
   const accent = cat.accent || "#888";
-  const num = String(l.number).padStart(2, "0");
   return `        <article class="card" id="${l.slug}"
           data-category="${esc(l.category)}"
           style="--card-accent:${accent};--tag-color:${accent}">
           <div class="card__top">
-            <span class="card__number">${num}</span>
-            <span class="tag">${esc(cat.name || "")}</span>
+            <span class="card__icon">${icon(cat.icon)}</span>
+            <span class="card__number">${pad(l.number)}</span>
           </div>
           <h2 class="card__name"><a href="#${l.slug}" class="card__link">${esc(l.name)}</a></h2>
           <p class="card__tagline">${esc(l.tagline)}</p>
@@ -107,7 +122,10 @@ function cardHtml(l) {
             <h3>The takeaway</h3>
             <p class="card__takeaway">${esc(l.takeaway)}</p>
           </div>
-          <span class="card__cue" aria-hidden="true">Read the law &rarr;</span>
+          <div class="card__foot">
+            <span class="tag">${esc(cat.name || "")}</span>
+            <span class="card__cue" aria-hidden="true">Read the law ${arrow}</span>
+          </div>
         </article>`;
 }
 
@@ -116,10 +134,37 @@ function filterHtml() {
     `<button class="filter is-active" data-filter="all"><span>All laws</span></button>`,
     ...DATA.categories.map(
       (c) =>
-        `<button class="filter" data-filter="${esc(c.id)}"><span class="filter__dot" style="background:${c.accent}"></span><span>${esc(c.name)}</span></button>`
+        `<button class="filter" data-filter="${esc(c.id)}" style="--tag-color:${c.accent}"><span class="filter__ic">${icon(c.icon)}</span><span>${esc(c.name)}</span></button>`
     ),
   ];
   return pills.join("\n      ");
+}
+
+function refsHtml() {
+  if (!refs.length) return "";
+  const items = refs
+    .map(
+      (r, i) => `      <li class="ref">
+        <a class="ref__link" href="${esc(r.url)}" target="_blank" rel="noopener">
+          <span class="ref__index">${pad(i + 1)}</span>
+          <span class="ref__body">
+            <span class="ref__title">${esc(r.title)} ${arrow}</span>
+            <span class="ref__source">${esc(r.source)}</span>
+            <span class="ref__note">${esc(r.note)}</span>
+          </span>
+        </a>
+      </li>`
+    )
+    .join("\n");
+  return `  <section class="refs" id="references" aria-label="Further reading">
+    <div class="refs__head">
+      <h2 class="refs__title">Further reading</h2>
+      <p class="refs__sub">The thinking these laws lean on — foundational essays, papers, and docs worth your time.</p>
+    </div>
+    <ol class="refs__list">
+${items}
+    </ol>
+  </section>`;
 }
 
 // ---------- page ----------
@@ -160,7 +205,7 @@ function indexHtml() {
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 
   <script type="application/ld+json">${jsonLd()}</script>
@@ -170,12 +215,14 @@ function indexHtml() {
 
   <header class="hero">
     <div class="hero__inner">
-      <p class="hero__eyebrow">Field notes · v1</p>
+      <p class="hero__eyebrow">Field notes · ${esc(SITE.version || "v1")}</p>
       <h1 class="hero__title">${esc(DATA.title)}</h1>
       <p class="hero__subtitle">${esc(DATA.subtitle)}</p>
       <p class="hero__intro">${esc(DATA.intro)}</p>
       <div class="hero__meta">
         <span class="hero__count">${laws.length} laws</span>
+        <span class="hero__dot">·</span>
+        <span>${DATA.categories.length} categories</span>
         <span class="hero__dot">·</span>
         <span>Inspired by <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></span>
       </div>
@@ -190,6 +237,8 @@ function indexHtml() {
 ${laws.map(cardHtml).join("\n")}
   </main>
 
+${refsHtml()}
+
   <footer class="footer">
     <p>Built by ${esc(SITE.author)}. A living list — more laws as they earn their place.</p>
     <p class="footer__sub">Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a> · ${YEAR}</p>
@@ -200,6 +249,7 @@ ${laws.map(cardHtml).join("\n")}
     <article class="modal__card">
       <button class="modal__close" data-close aria-label="Close">&times;</button>
       <div class="modal__head">
+        <span class="modal__icon" id="modal-icon"></span>
         <span class="modal__number" id="modal-number"></span>
         <span class="tag" id="modal-tag"></span>
       </div>
@@ -228,6 +278,7 @@ function sitemapXml() {
   const urls = [
     { loc: SITE.url + "/", priority: "1.0" },
     ...laws.map((l) => ({ loc: `${SITE.url}/#${l.slug}`, priority: "0.7" })),
+    { loc: `${SITE.url}/#references`, priority: "0.5" },
   ];
   const body = urls
     .map(
@@ -254,8 +305,7 @@ writeFileSync(join(DIST, "laws.json"), JSON.stringify(DATA, null, 2));
 for (const asset of ["styles.css", "app.js", "favicon.svg"]) {
   copyFileSync(join(ROOT, "src", asset), join(DIST, asset));
 }
-// og-image is optional (generated separately); copy if present
 const og = join(ROOT, "src", "og-image.png");
 if (existsSync(og)) copyFileSync(og, join(DIST, "og-image.png"));
 
-console.log(`✓ Built ${laws.length} laws -> dist/  (index.html, sitemap.xml, robots.txt, laws.json, assets)`);
+console.log(`✓ Built ${laws.length} laws + ${refs.length} references -> dist/`);

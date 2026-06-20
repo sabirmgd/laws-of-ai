@@ -44,6 +44,12 @@
   function openCard(card, push) {
     const d = dataFromCard(card);
     $("#modal-number").textContent = "Law " + d.number;
+    const mIcon = $("#modal-icon");
+    const cIcon = $(".card__icon", card);
+    if (mIcon && cIcon) {
+      mIcon.innerHTML = cIcon.innerHTML;
+      mIcon.style.color = d.accent;
+    }
     const tag = $("#modal-tag");
     tag.textContent = d.tag;
     tag.style.setProperty("--tag-color", d.accent);
