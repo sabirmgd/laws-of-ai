@@ -508,6 +508,86 @@ a:hover { color: var(--accent); }
 }
 .footer__sub { margin-top: 8px; color: var(--text-faint); font-size: 12.5px; font-family: var(--mono); }
 
+/* ---------- Newsletter signup ---------- */
+.signup {
+  position: relative;
+  z-index: 2;
+  max-width: var(--maxw);
+  margin: 18px auto 0;
+  padding: 0 24px;
+}
+.signup__in {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background:
+    radial-gradient(80% 120% at 0% 0%, rgba(124, 156, 255, 0.10), transparent 60%),
+    radial-gradient(80% 120% at 100% 100%, rgba(95, 211, 168, 0.08), transparent 60%),
+    var(--card);
+  padding: clamp(32px, 5vw, 52px);
+  text-align: center;
+}
+.signup__eyebrow {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.signup__title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(26px, 4vw, 36px);
+  letter-spacing: -0.015em;
+  line-height: 1.05;
+}
+.signup__sub {
+  color: var(--text-dim);
+  margin-top: 12px;
+  font-size: 15px;
+  max-width: 460px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.signup__form {
+  display: flex;
+  gap: 10px;
+  max-width: 440px;
+  margin: 24px auto 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.signup__input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 13px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  transition: border-color 0.25s var(--ease);
+}
+.signup__input::placeholder { color: var(--text-faint); }
+.signup__input:focus { outline: none; border-color: var(--accent); }
+.signup__btn {
+  flex: 0 0 auto;
+  padding: 13px 24px;
+  border-radius: 12px;
+  border: none;
+  background: var(--text);
+  color: #0b0c10;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: transform 0.25s var(--ease), opacity 0.25s var(--ease);
+}
+.signup__btn:hover { transform: translateY(-1px); opacity: 0.92; }
+
 @media (max-width: 560px) {
   .grid { grid-template-columns: 1fr; }
   .modal__card { padding: 34px 22px 26px; }

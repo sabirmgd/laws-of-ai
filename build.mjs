@@ -153,6 +153,23 @@ function filterHtml() {
   return pills.join("\n      ");
 }
 
+function newsletterHtml() {
+  const n = SITE.newsletter;
+  if (!n || !n.action) return ""; // off until an ESP action URL is configured
+  const field = esc(n.field || "email");
+  return `  <section class="signup" id="subscribe" aria-label="Newsletter signup">
+    <div class="signup__in">
+      <p class="signup__eyebrow">Free 5-lesson email course</p>
+      <h2 class="signup__title">Get the laws in your inbox</h2>
+      <p class="signup__sub">One law every 5 days, each with a real example and its source. No spam, unsubscribe anytime.</p>
+      <form class="signup__form" action="${esc(n.action)}" method="post" target="_blank">
+        <input class="signup__input" type="email" name="${field}" placeholder="you@company.com" autocomplete="email" required />
+        <button class="signup__btn" type="submit">Subscribe</button>
+      </form>
+    </div>
+  </section>`;
+}
+
 function refsHtml() {
   if (!refs.length) return "";
   const items = refs
@@ -258,6 +275,8 @@ ${SITE.ga ? `  <!-- Google tag (gtag.js) -->
   <main class="grid" id="grid">
 ${laws.map(cardHtml).join("\n")}
   </main>
+
+${newsletterHtml()}
 
 ${refsHtml()}
 

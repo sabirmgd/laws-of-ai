@@ -12,7 +12,12 @@
     "ogImage": "https://laws.deleg8.dev/og-image.png",
     "locale": "en_US",
     "twitter": "@sabirmgd",
-    "ga": "G-YQSH69LQ5P"
+    "ga": "G-YQSH69LQ5P",
+    "newsletter": {
+      "action": "",
+      "field": "email",
+      "note": "Set action to your Kit/MailerLite form POST URL and field to its email input name to switch the on-site signup on."
+    }
   },
   "categories": [
     { "id": "context-reliability", "name": "Context & Reliability", "blurb": "How agents see the world, and where they break.", "accent": "#7c9cff", "icon": "pulse" },
