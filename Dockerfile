@@ -3,6 +3,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY data ./data
 COPY src ./src
+COPY lib ./lib
+COPY pdf/assets ./pdf/assets
 COPY build.mjs ./
 RUN node build.mjs
 

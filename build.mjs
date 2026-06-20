@@ -12,15 +12,19 @@
  *
  * Zero dependencies — pure Node. Edit data/laws.json, rebuild, done.
  */
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from "node:fs";
+import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadBook } from "./lib/content.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA = JSON.parse(readFileSync(join(ROOT, "data/laws.json"), "utf8"));
 const DIST = join(ROOT, "dist");
-const SITE = DATA.site;
 const YEAR = "2026";
+
+// Single source of truth — shared with the PDF build (build-pdf.mjs).
+const book = loadBook();
+const DATA = { title: book.title, subtitle: book.subtitle, intro: book.intro, categories: book.categories, site: book.site };
+const SITE = book.site;
 
 // ---------- helpers ----------
 const esc = (s = "") =>
@@ -35,9 +39,9 @@ const slugify = (s) =>
 
 const pad = (n) => String(n).padStart(2, "0");
 
-const catById = Object.fromEntries(DATA.categories.map((c) => [c.id, c]));
-const laws = DATA.laws.map((l) => ({ ...l, slug: slugify(l.name) }));
-const refs = DATA.references || [];
+const catById = book.catById;
+const laws = book.laws; // already enriched: slug, source, depth, signals, apply, example, sources, image
+const refs = book.refs;
 
 // ---------- category icons (line, currentColor) ----------
 const ICON_PATHS = {
@@ -268,6 +272,8 @@ ${SITE.ga ? `  <!-- Google tag (gtag.js) -->
     </div>
   </header>
 
+${editionPromoHtml()}
+
   <nav class="filters" id="filters" aria-label="Filter laws by category">
       ${filterHtml()}
   </nav>
@@ -316,9 +322,223 @@ ${refsHtml()}
 `;
 }
 
+// ---------- digital edition (the expandable full book; gate later) ----------
+const lawsInCat = (id) => laws.filter((l) => l.category === id);
+
+function editionImg(l) {
+  if (!l.image) return "";
+  return `<figure class="lw__fig"><img loading="lazy" src="assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`;
+}
+
+function editionLaw(l) {
+  const cat = catById[l.category] || {};
+  const signals = l.signals.map((s) => `<li>${esc(s)}</li>`).join("");
+  const apply = l.apply.map((s) => `<li>${esc(s)}</li>`).join("");
+  const sources = l.sources
+    .map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title)}${s.author ? ` · ${esc(s.author)}` : ""} ${arrow}</a></li>`)
+    .join("");
+  return `      <details class="lw" id="${l.slug}" style="--ac:${cat.accent || "#888"}">
+        <summary class="lw__sum">
+          <span class="lw__no">${pad(l.number)}</span>
+          <span class="lw__head">
+            <span class="lw__name">${esc(l.name)}</span>
+            <span class="lw__tag">${esc(l.tagline)}</span>
+          </span>
+          <span class="lw__chev" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </span>
+        </summary>
+        <div class="lw__open">
+          ${editionImg(l)}
+          <div class="lw__txt">
+            <p class="lw__lbl">The principle</p>
+            <p>${esc(l.principle)}</p>
+            ${l.depth ? `<p class="lw__lbl">Why it happens</p><p>${esc(l.depth)}</p>` : ""}
+            ${signals ? `<p class="lw__lbl">Watch for</p><ul class="lw__ul">${signals}</ul>` : ""}
+            ${l.example ? `<div class="lw__call"><p class="lw__lbl lw__lbl--ac">In practice</p><p>${esc(l.example)}</p></div>` : ""}
+            ${apply ? `<p class="lw__lbl lw__lbl--ac">Apply it</p><ol class="lw__ol">${apply}</ol>` : ""}
+            <div class="lw__call lw__call--take"><p class="lw__lbl lw__lbl--ac">The takeaway</p><p>${esc(l.takeaway)}</p></div>
+            ${sources ? `<p class="lw__lbl">Sources and further reading</p><ul class="lw__src">${sources}</ul>` : ""}
+          </div>
+        </div>
+      </details>`;
+}
+
+function editionBody() {
+  return DATA.categories
+    .map((c, i) => {
+      const ls = lawsInCat(c.id);
+      const divider = `      <section class="part" style="--ac:${c.accent}">
+        <span class="part__ic">${icon(c.icon)}</span>
+        <div>
+          <p class="part__eyebrow">Part ${i + 1} · Laws ${pad(ls[0].number)}–${pad(ls[ls.length - 1].number)}</p>
+          <h2 class="part__name">${esc(c.name)}</h2>
+          <p class="part__blurb">${esc(c.blurb)}</p>
+        </div>
+      </section>`;
+      return divider + "\n" + ls.map(editionLaw).join("\n");
+    })
+    .join("\n");
+}
+
+function editionHtml() {
+  const canonical = SITE.url + "/edition.html";
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${esc(SITE.name)} — The Expanded Digital Edition</title>
+  <meta name="description" content="The expanded digital edition of ${esc(SITE.name)}: all ${laws.length} laws in full — the mechanism, warning signs, a worked example, an apply-it recipe, and sources, each with an explanatory diagram." />
+  <meta name="author" content="${esc(SITE.author)}" />
+  <link rel="canonical" href="${canonical}" />
+  <meta name="theme-color" content="#0b0c10" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${esc(SITE.name)} — The Expanded Digital Edition" />
+  <meta property="og:description" content="All ${laws.length} laws in full, each with an explanatory diagram." />
+  <meta property="og:url" content="${canonical}" />
+  <meta property="og:image" content="${esc(SITE.ogImage)}" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="edition.css" />
+${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
+` : ""}</head>
+<body class="ed">
+  <div class="grain" aria-hidden="true"></div>
+
+  <header class="ed__hero">
+    <a class="ed__back" href="index.html">← All laws</a>
+    <p class="ed__eyebrow">The Expanded Digital Edition · ${esc(SITE.version || "v1")}</p>
+    <h1 class="ed__title">${esc(DATA.title)}</h1>
+    <p class="ed__sub">${esc(DATA.subtitle)}</p>
+    <p class="ed__intro">${esc(DATA.intro)}</p>
+    <div class="ed__meta">
+      <span>${laws.length} laws</span><span>·</span>
+      <span>the mechanism</span><span>·</span>
+      <span>worked examples</span><span>·</span>
+      <span>apply-it recipes</span><span>·</span>
+      <span>${refs.length}+ sources</span>
+    </div>
+    <div class="ed__controls">
+      <button class="ed__btn" id="expandAll">Expand all</button>
+      <button class="ed__btn ed__btn--ghost" id="collapseAll">Collapse all</button>
+    </div>
+  </header>
+
+  <main class="ed__main">
+${editionBody()}
+  </main>
+
+  <footer class="ed__foot">
+    <p>${esc(SITE.name)} · The Expanded Digital Edition · by ${esc(SITE.author)} · ${YEAR}</p>
+    <p class="ed__foot-sub"><a href="index.html">Back to the free overview</a> · Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></p>
+  </footer>
+
+  <script>
+    (function () {
+      var all = function () { return Array.prototype.slice.call(document.querySelectorAll('details.lw')); };
+      var ea = document.getElementById('expandAll');
+      var ca = document.getElementById('collapseAll');
+      if (ea) ea.addEventListener('click', function () { all().forEach(function (d) { d.open = true; }); });
+      if (ca) ca.addEventListener('click', function () { all().forEach(function (d) { d.open = false; }); });
+      function openHash() {
+        if (!location.hash) return;
+        var el = document.querySelector(location.hash);
+        if (el && el.tagName === 'DETAILS') { el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      }
+      window.addEventListener('hashchange', openHash);
+      openHash();
+    })();
+  </script>
+</body>
+</html>
+`;
+}
+
+function editionPromoHtml() {
+  return `  <section class="promo" aria-label="Digital edition">
+    <div class="promo__in">
+      <p class="promo__eyebrow">The Expanded Digital Edition</p>
+      <h2 class="promo__title">Every law, in full — with a diagram for each.</h2>
+      <p class="promo__sub">The mechanism underneath, the warning signs, a worked example, an apply-it recipe, and the sources. ${laws.length} laws, expandable in one place.</p>
+      <a class="promo__btn" href="edition.html">Open the digital edition ${arrow}</a>
+    </div>
+  </section>`;
+}
+
+function editionCss() {
+  return `/* The Expanded Digital Edition — self-contained, dark, premium. */
+:root{--bg:#0a0b0f;--card:#14161d;--card-hover:#181b24;--border:#23262f;--text:#f3f4f6;--dim:#9aa0ac;--faint:#6b7180;--accent:#7c9cff;--serif:"Fraunces",Georgia,serif;--sans:"Inter",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;--maxw:840px;--ease:cubic-bezier(.16,1,.3,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body.ed{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased;position:relative}
+body.ed::before{content:"";position:fixed;inset:0;background:radial-gradient(60% 50% at 12% -5%,rgba(124,156,255,.13),transparent 70%),radial-gradient(48% 45% at 88% 6%,rgba(184,156,255,.10),transparent 70%),radial-gradient(55% 50% at 50% 105%,rgba(94,211,168,.07),transparent 70%);pointer-events:none;z-index:0}
+.grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.022;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+a{color:inherit;text-decoration:none}
+.arw{width:13px;height:13px;flex:none}
+.ed__hero,.ed__main,.ed__foot{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto;padding-left:24px;padding-right:24px}
+.ed__hero{padding-top:clamp(40px,8vw,84px);padding-bottom:clamp(28px,5vw,48px)}
+.ed__back{font-family:var(--mono);font-size:13px;color:var(--dim)}
+.ed__back:hover{color:var(--accent)}
+.ed__eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-top:22px}
+.ed__title{font-family:var(--serif);font-weight:500;font-size:clamp(34px,6vw,56px);line-height:1.02;letter-spacing:-.02em;margin-top:14px}
+.ed__sub{font-family:var(--serif);font-size:clamp(17px,2.5vw,21px);color:#cdd2dc;margin-top:14px}
+.ed__intro{color:var(--dim);margin-top:16px;max-width:680px}
+.ed__meta{display:flex;flex-wrap:wrap;gap:10px;font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:18px}
+.ed__controls{display:flex;gap:10px;margin-top:24px}
+.ed__btn{font-family:var(--mono);font-size:13px;color:#0a0b0f;background:var(--text);border:1px solid var(--text);border-radius:99px;padding:9px 16px;cursor:pointer;transition:transform .2s var(--ease),opacity .2s}
+.ed__btn:hover{transform:translateY(-1px);opacity:.92}
+.ed__btn--ghost{color:var(--text);background:transparent;border-color:var(--border)}
+.ed__btn--ghost:hover{border-color:var(--dim)}
+.part{display:flex;gap:16px;align-items:flex-start;margin:54px 0 18px;padding-top:26px;border-top:1px solid var(--border)}
+.part:first-of-type{border-top:none;margin-top:8px}
+.part__ic{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:12px;color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent);border:1px solid color-mix(in srgb,var(--ac) 30%,transparent)}
+.part__ic svg{width:20px;height:20px}
+.part__eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ac)}
+.part__name{font-family:var(--serif);font-weight:500;font-size:26px;letter-spacing:-.01em;margin-top:4px}
+.part__blurb{color:var(--dim);margin-top:4px}
+.lw{border:1px solid var(--border);border-radius:16px;background:var(--card);margin:10px 0;overflow:hidden;transition:border-color .2s,background .2s}
+.lw[open]{border-color:color-mix(in srgb,var(--ac) 40%,var(--border));background:var(--card-hover)}
+.lw__sum{display:flex;align-items:center;gap:16px;padding:18px 20px;cursor:pointer;list-style:none}
+.lw__sum::-webkit-details-marker{display:none}
+.lw__no{font-family:var(--mono);font-weight:600;font-size:14px;color:var(--ac);flex:none;width:28px}
+.lw__head{flex:1;min-width:0}
+.lw__name{display:block;font-family:var(--serif);font-weight:500;font-size:19px;letter-spacing:-.01em}
+.lw__tag{display:block;font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ac);margin-top:2px}
+.lw__chev{flex:none;color:var(--faint);transition:transform .25s var(--ease)}
+.lw__chev svg{width:18px;height:18px}
+.lw[open] .lw__chev{transform:rotate(180deg)}
+.lw__open{padding:0 20px 22px;border-top:1px solid var(--border)}
+.lw__fig{margin:18px 0;border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--ac) 6%,#0e1016);border:1px solid color-mix(in srgb,var(--ac) 16%,transparent)}
+.lw__fig img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
+.lw__txt>p,.lw__txt ul,.lw__txt ol{font-size:15.5px;color:#dfe2e8}
+.lw__lbl{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:18px;margin-bottom:4px;font-weight:600}
+.lw__lbl--ac{color:var(--ac)}
+.lw__ul,.lw__ol{margin:6px 0 0 2px;padding:0}
+.lw__ul li,.lw__ol li{margin:0 0 6px 0;padding-left:24px;position:relative;list-style:none}
+.lw__ul li::before{content:"";position:absolute;left:6px;top:10px;width:5px;height:5px;border-radius:50%;background:var(--ac)}
+.lw__ol{counter-reset:ap}
+.lw__ol li::before{counter-increment:ap;content:counter(ap);position:absolute;left:0;top:1px;width:17px;height:17px;border-radius:50%;background:color-mix(in srgb,var(--ac) 18%,transparent);color:var(--ac);font-family:var(--mono);font-size:10px;font-weight:600;display:grid;place-items:center}
+.lw__call{margin-top:16px;padding:14px 16px;border-radius:12px;background:color-mix(in srgb,var(--ac) 7%,#0e1016);border:1px solid color-mix(in srgb,var(--ac) 18%,transparent);border-left:2.5px solid var(--ac)}
+.lw__call .lw__lbl{margin-top:0}
+.lw__src{margin:6px 0 0;padding:0;list-style:none}
+.lw__src li{margin:0 0 6px}
+.lw__src a{font-family:var(--mono);font-size:13px;color:var(--ac);display:inline-flex;align-items:center;gap:6px}
+.lw__src a:hover{text-decoration:underline}
+.ed__foot{padding:48px 24px 64px;border-top:1px solid var(--border);margin-top:54px;color:var(--faint);font-family:var(--mono);font-size:12.5px;text-align:center}
+.ed__foot-sub{margin-top:8px}
+.ed__foot a:hover{color:var(--accent)}
+@media(max-width:560px){.lw__sum{gap:12px;padding:15px 16px}.lw__open{padding:0 16px 18px}.lw__name{font-size:17px}}
+`;
+}
+
 function sitemapXml() {
   const urls = [
     { loc: SITE.url + "/", priority: "1.0" },
+    { loc: `${SITE.url}/edition.html`, priority: "0.9" },
     ...laws.map((l) => ({ loc: `${SITE.url}/#${l.slug}`, priority: "0.7" })),
     { loc: `${SITE.url}/#references`, priority: "0.5" },
   ];
@@ -339,10 +559,23 @@ function robotsTxt() {
 if (existsSync(DIST)) rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST, { recursive: true });
 
+// Public data API — full content, minus internal-only image resolution paths.
+const publicData = {
+  title: book.title,
+  subtitle: book.subtitle,
+  intro: book.intro,
+  site: book.site,
+  categories: book.categories,
+  laws: book.laws.map(({ image, ...rest }) => ({ ...rest, hasImage: !!image })),
+  references: refs,
+};
+
 writeFileSync(join(DIST, "index.html"), indexHtml());
+writeFileSync(join(DIST, "edition.html"), editionHtml());
+writeFileSync(join(DIST, "edition.css"), editionCss());
 writeFileSync(join(DIST, "sitemap.xml"), sitemapXml());
 writeFileSync(join(DIST, "robots.txt"), robotsTxt());
-writeFileSync(join(DIST, "laws.json"), JSON.stringify(DATA, null, 2));
+writeFileSync(join(DIST, "laws.json"), JSON.stringify(publicData, null, 2));
 
 for (const asset of ["styles.css", "app.js", "favicon.svg"]) {
   copyFileSync(join(ROOT, "src", asset), join(DIST, asset));
@@ -350,4 +583,14 @@ for (const asset of ["styles.css", "app.js", "favicon.svg"]) {
 const og = join(ROOT, "src", "og-image.png");
 if (existsSync(og)) copyFileSync(og, join(DIST, "og-image.png"));
 
-console.log(`✓ Built ${laws.length} laws + ${refs.length} references -> dist/`);
+// Copy the hero diagrams used by the digital edition into dist/assets/edition/.
+const EDITION_ASSETS = join(DIST, "assets", "edition");
+mkdirSync(EDITION_ASSETS, { recursive: true });
+let copiedImgs = 0;
+for (const l of laws) {
+  if (!l.image) continue;
+  copyFileSync(l.image.absPath, join(EDITION_ASSETS, l.image.file));
+  copiedImgs++;
+}
+
+console.log(`✓ Built ${laws.length} laws + ${refs.length} references -> dist/ (index + edition, ${copiedImgs} diagrams)`);

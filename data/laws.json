@@ -7,7 +7,7 @@
     "name": "Laws of AI Agents",
     "version": "v3",
     "description": "Fifty hard-won, source-backed, model-agnostic laws for building AI agents that actually work — covering context, reasoning, retrieval, scope, instruction, evaluation, safety, architecture, operations, and human oversight. Inspired by the format of Laws of UX.",
-    "author": "Sabir Salah",
+    "author": "Sabir Moglad",
     "keywords": "AI agents, LLM agents, agent design, agent reliability, prompt engineering, tool design, RAG, retrieval augmented generation, multi-agent systems, agent evaluation, evals, prompt injection, lethal trifecta, agentic workflows, building AI agents, agent architecture, context engineering, laws of AI agents",
     "ogImage": "https://laws.deleg8.dev/og-image.png",
     "locale": "en_US",

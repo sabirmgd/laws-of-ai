@@ -6,24 +6,24 @@
  *
  * No em dashes in output: principle/takeaway/tagline text is de-em-dashed.
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadBook } from "./lib/content.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
-const DATA = JSON.parse(readFileSync(join(ROOT, "data/laws.json"), "utf8"));
-const EX = JSON.parse(readFileSync(join(ROOT, "data/examples.json"), "utf8"));
-const DEEP = JSON.parse(readFileSync(join(ROOT, "data/deep.json"), "utf8"));
 const OUTDIR = join(ROOT, "pdf");
+
+// Single source of truth — shared with the website build (build.mjs).
+const book = loadBook();
+const cats = book.categories;
+const catById = book.catById;
+const SITE = book.site;
 
 const esc = (s = "") => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const noEm = (s = "") => String(s).replace(/\s*—\s*/g, ", ");
 const txt = (s = "") => esc(noEm(s));
 const pad = (n) => String(n).padStart(2, "0");
-
-const cats = DATA.categories;
-const catById = Object.fromEntries(cats.map((c) => [c.id, c]));
-const SITE = DATA.site;
 
 const ICON = {
   pulse: '<path d="M3 12h4l2.4-7 4.2 14 2.4-7H21"/>',
@@ -39,20 +39,19 @@ const ICON = {
 };
 const icon = (id, cls = "") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICON[id] || ""}</svg>`;
 
-const lawsByCat = (id) => DATA.laws.filter((l) => l.category === id);
+const lawsByCat = (id) => book.laws.filter((l) => l.category === id);
 
 function lawBlock(l) {
   const c = catById[l.category];
-  const ex = EX[l.name] || "";
-  const d = DEEP[l.name] || {};
-  const signals = (d.signals || []).map((s) => `<li>${txt(s)}</li>`).join("");
-  const apply = (d.apply || []).map((s) => `<li>${txt(s)}</li>`).join("");
-  const sources = [];
-  if (l.source?.url) sources.push(l.source);
-  (d.extra_refs || []).forEach((r) => sources.push(r));
-  const sourcesHtml = sources
+  const signals = l.signals.map((s) => `<li>${txt(s)}</li>`).join("");
+  const apply = l.apply.map((s) => `<li>${txt(s)}</li>`).join("");
+  const sourcesHtml = l.sources
     .map((s) => `<li><a href="${esc(s.url)}">${txt(s.title)}${s.author ? " · " + txt(s.author) : ""}</a></li>`)
     .join("");
+  const heroFile = l.image
+    ? (l.image.variant === "explain" ? `assets/explain/${l.image.file}` : `assets/${l.image.file}`)
+    : "";
+  const hero = heroFile ? `<figure class="law__hero"><img src="${heroFile}" alt="" /></figure>` : "";
   return `<article class="law" style="--ac:${c.accent}">
     <div class="law__head">
       <span class="law__no">${pad(l.number)}</span>
@@ -60,14 +59,15 @@ function lawBlock(l) {
     </div>
     <h3 class="law__name">${txt(l.name)}</h3>
     <p class="law__tagline">${txt(l.tagline)}</p>
+    ${hero}
     <div class="law__body">
       <p class="lbl">The principle</p>
       <p class="bd">${txt(l.principle)}</p>
-      ${d.depth ? `<p class="lbl">Why it happens</p><p class="bd">${txt(d.depth)}</p>` : ""}
+      ${l.depth ? `<p class="lbl">Why it happens</p><p class="bd">${txt(l.depth)}</p>` : ""}
       ${signals ? `<p class="lbl">Watch for</p><ul class="ul">${signals}</ul>` : ""}
       <div class="practice">
         <p class="lbl lbl--ac">In practice</p>
-        <p class="bd">${txt(ex)}</p>
+        <p class="bd">${txt(l.example)}</p>
       </div>
       ${apply ? `<p class="lbl lbl--ac">Apply it</p><ol class="ol">${apply}</ol>` : ""}
       <div class="takeaway">
@@ -101,7 +101,7 @@ const tocRows = cats
   })
   .join("\n");
 
-const refsRows = (DATA.references || [])
+const refsRows = book.refs
   .map((r, i) => `<li><span class="rn">${pad(i + 1)}</span><span><strong>${txt(r.title)}</strong> · ${txt(r.source)}<br/><a href="${esc(r.url)}">${esc(r.url)}</a><br/><em>${txt(r.note)}</em></span></li>`)
   .join("\n");
 
@@ -131,7 +131,7 @@ const html = `<!DOCTYPE html>
   .cover__in { position:relative; height:100%; display:flex; flex-direction:column; }
   .cover__eyebrow { font-family:var(--mono); font-size:11pt; letter-spacing:0.22em; text-transform:uppercase; color:#8b91a0; }
   .cover__title { font-family:var(--serif); font-weight:500; font-size:58pt; line-height:0.96; letter-spacing:-0.02em; margin-top:14mm;
-    background:linear-gradient(180deg,#fff 30%,#c4cbf5 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    color:#eef1f8; }
   .cover__sub { font-family:var(--serif); font-size:18pt; color:#cdd2dc; margin-top:9mm; max-width:150mm; line-height:1.3; }
   .cover__meta { font-family:var(--mono); font-size:10pt; color:#8b91a0; margin-top:7mm; }
   .cover__dots { display:flex; gap:7px; margin-top:auto; }
@@ -170,6 +170,9 @@ const html = `<!DOCTYPE html>
     color:var(--ac); background:color-mix(in srgb, var(--ac) 13%, transparent); border:1px solid color-mix(in srgb, var(--ac) 26%, transparent); padding:1mm 2.4mm; border-radius:99px; }
   .law__name { font-family:var(--serif); font-weight:500; font-size:19pt; letter-spacing:-0.01em; line-height:1.1; }
   .law__tagline { font-family:var(--serif); font-style:italic; font-size:12.5pt; color:var(--ac); margin-top:1.5mm; margin-bottom:3.5mm; }
+  .law__hero { margin:1mm 0 4mm; padding:3mm; border-radius:3mm; break-inside:avoid;
+    background:color-mix(in srgb, var(--ac) 4%, #faf9f7); border:1px solid color-mix(in srgb, var(--ac) 13%, transparent); }
+  .law__hero img { display:block; width:100%; max-height:92mm; object-fit:contain; }
   .lbl { font-family:var(--mono); font-size:7.8pt; letter-spacing:0.1em; text-transform:uppercase; color:#9298a4; font-weight:600; margin-top:3.4mm; margin-bottom:1.2mm; break-after:avoid; }
   .lbl--ac { color:var(--ac); }
   .bd { font-size:10.2pt; color:#33363f; line-height:1.55; }
@@ -212,7 +215,7 @@ const html = `<!DOCTYPE html>
   <div class="cover"><div class="cover__in">
     <p class="cover__eyebrow">The Expanded Field Guide</p>
     <h1 class="cover__title">Laws of AI&nbsp;Agents</h1>
-    <p class="cover__sub">${esc(DATA.subtitle)}</p>
+    <p class="cover__sub">${esc(book.subtitle)}</p>
     <p class="cover__meta">50 laws · the mechanism · warning signs · apply-it recipes · 100+ sources</p>
     <div class="cover__dots">${dots}</div>
     <div class="cover__by"><span>By ${esc(SITE.author)}</span><span>laws.deleg8.dev</span></div>
@@ -220,7 +223,7 @@ const html = `<!DOCTYPE html>
 
   <div class="intro">
     <h2 class="page-h">What this is</h2>
-    <p class="lead">${txt(DATA.intro)}</p>
+    <p class="lead">${txt(book.intro)}</p>
     <h3>How to read it</h3>
     <p>Each law is laid out the same way. <strong>The principle</strong> is why it is true. <strong>Why it happens</strong> is the mechanism underneath, grounded in real research. <strong>Watch for</strong> lists the warning signs you are violating it. <strong>In practice</strong> is a concrete scenario where it bites and how to handle it. <strong>Apply it</strong> is a short, framework-independent recipe. <strong>The takeaway</strong> is the one-line version. <strong>Sources and further reading</strong> point you deeper.</p>
     <h3>How to use it</h3>
@@ -253,4 +256,4 @@ const html = `<!DOCTYPE html>
 
 if (!existsSync(OUTDIR)) mkdirSync(OUTDIR, { recursive: true });
 writeFileSync(join(OUTDIR, "laws-of-ai.html"), html);
-console.log(`✓ PDF source built -> pdf/laws-of-ai.html (${DATA.laws.length} laws, ${(DATA.references || []).length} refs)`);
+console.log(`✓ PDF source built -> pdf/laws-of-ai.html (${book.laws.length} laws, ${book.refs.length} refs)`);
