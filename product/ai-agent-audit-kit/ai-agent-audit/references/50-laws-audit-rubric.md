@@ -16,13 +16,13 @@ Audit priority order:
 
 Category: Context & Reliability
 
-Tagline: Agents fail at context, not reasoning.
+Tagline: Most agent failures start with the wrong context.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-Most bad outputs trace to missing, stale, or poisoned context — not a model that can't think. The model is usually smart enough; it was just reasoning over the wrong picture of the world. Garbage context produces confident garbage, and the confidence is exactly what makes it dangerous.
+Most bad outputs trace to missing, stale, or contradictory context, not a model that cannot think. The model may reason well over the picture it was given and still land wrong because the picture itself was wrong. Bad context produces confident bad answers.
 
 Warning signs:
 
@@ -281,13 +281,13 @@ Sources:
 
 Category: Reasoning & Planning
 
-Tagline: General methods plus compute beat your clever scaffolding.
+Tagline: Build scaffolding you would gladly delete.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-The Bitter Lesson distills 70 years of AI: approaches that leverage general computation eventually crush approaches built on hand-encoded human cleverness, by a large margin. Baked-in scaffolds — elaborate prompt chains, rigid decision trees, hardcoded heuristics — buy a short-term gain and become a ceiling. Your intricate planning DSL will likely be obsoleted by the next, more capable model.
+The Bitter Lesson is not a ban on structure. It is a warning against hand-coded cleverness that becomes a ceiling. Use code for guarantees and thin scaffolds for today's weak spots, but keep asking whether a simpler model-driven baseline now works better.
 
 Warning signs:
 
@@ -297,13 +297,13 @@ Warning signs:
 
 Fix patterns:
 
-- Prefer general, model-driven reasoning over bespoke decision trees and hardcoded heuristics.
+- Use deterministic code for guarantees, not for hand-encoding every judgment.
 - Build the thinnest scaffold that works and that you would happily delete when the model improves.
 - Periodically re-test a minimal-scaffold baseline against your tuned pipeline as models advance.
 
 Worked example:
 
-You spend two weeks hand-building a 40-node decision tree and a brittle prompt-chain DSL to make a weaker model route tickets correctly, and it works, until the next model release makes your scaffolding the bottleneck and a plain 'here are the tools, decide' prompt beats it. Hand-encoded cleverness buys a short-term win and becomes a permanent ceiling. Build the thinnest scaffold that works and that you would happily delete when the model improves, because it will.
+You spend two weeks hand-building a 40-node routing tree to help a weaker model triage tickets. It works for a while, then a newer model with a simpler tool prompt matches it and is easier to maintain. The lesson is not to remove all structure; validation and permissions still belong in code. The lesson is to keep temporary scaffolding thin and deletable. Re-test the simple baseline as models improve, and remove the custom chain when it stops earning its complexity.
 
 Sources:
 
@@ -320,7 +320,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Reasoning models 'overthink': they pour disproportionate effort into trivial problems for minimal gain, and on harder ones, extended deliberation can talk them out of a correct initial answer. Reasoning depth has a sweet spot, not a monotonic payoff. An agent grinding tokens on a simple lookup burns latency and money; one that keeps re-deriving can reason its way to the wrong conclusion.
+More reasoning is not automatically better. On easy tasks it can burn latency and money for no gain; on some tasks the model finds the answer early and then talks itself away from it. Reasoning depth has a useful range, not an infinite upside.
 
 Warning signs:
 
@@ -336,24 +336,26 @@ Fix patterns:
 
 Worked example:
 
-You route every query through extended reasoning to be safe, and your 'what is the order status' lookups now take 8 seconds and cost 4x while occasionally talking themselves out of the correct status field. Reasoning has a sweet spot, not a monotonic payoff: trivial lookups get burned latency for nothing, and over-deliberation can overturn a right first answer. Match the thinking budget to difficulty, cap it on easy paths, and stop the moment you have a confident answer instead of letting it wander.
+You route every order-status lookup through extended reasoning to be safe. The answer is a direct database field, but the agent now takes eight seconds, costs several times more, and sometimes talks itself away from the obvious result. More tokens did not add information. Match the thinking budget to the task: skip extended reasoning for simple lookups, use bounded reasoning for ambiguous judgment, and use tests or tools rather than endless deliberation when stakes are high.
 
 Sources:
 
 - [Do NOT Think That Much for 2+3=? On the Overthinking of o1-Like LLMs](https://arxiv.org/abs/2412.21187) - Chen et al., 2024
-- [The Illusion of Thinking: Strengths and Limitations of Reasoning Models](https://arxiv.org/abs/2506.06941) - Shojaee et al. (Apple), 2025
+- [The Illusion of Thinking: Understanding the Strengths and Limitations of Reasoning Models](https://arxiv.org/abs/2506.06941) - Shojaee et al. (Apple), 2025
+- [Comment on The Illusion of Thinking](https://arxiv.org/abs/2506.09250) - Lawsen, 2025
+- [Rethinking the Illusion of Thinking](https://arxiv.org/abs/2507.01231) - Varela et al., 2025
 
 ## 11. Retrieval Is the Ceiling
 
 Category: Retrieval & Memory
 
-Tagline: Your answer can only be as good as what you retrieved.
+Tagline: Missing evidence becomes a missing answer.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-A model's parametric memory is fixed and imprecise; the retriever supplies the facts it reasons over. If the right passage never makes it into context, no amount of model intelligence recovers it — the generator confidently fills the gap instead. Retrieval quality is the hard ceiling on answer quality, not a tunable nice-to-have.
+For facts the model does not already know reliably, the answer can only be as good as the evidence retrieved. If the right passage never reaches context, the generator fills the gap from memory and guesswork. Retrieval quality sets the practical ceiling for grounded answers.
 
 Warning signs:
 
@@ -369,7 +371,7 @@ Fix patterns:
 
 Worked example:
 
-You swap one model for a smarter one to fix wrong answers in your support bot, and accuracy barely moves, because the chunk containing the refund policy was never in the top-k to begin with. The model was not dumb, it was guessing into a void and filling it confidently. Before you touch the prompt or the model, log recall@k on a labeled query set: if the right passage is not retrieved 90%+ of the time, no generation upgrade can save you. Fix the retriever first, then optimize generation.
+You swap in a smarter model to fix wrong support answers, and accuracy barely moves because the refund-policy chunk never reached the top-k. The generator was filling a missing-evidence gap. Before touching prompts or models, log recall@k on labeled questions: did the answer-bearing passage appear, and was it ranked high enough to matter? If not, fix chunking, query expansion, or ranking first. Better generation cannot reliably ground an answer in evidence it never saw.
 
 Sources:
 
@@ -808,7 +810,7 @@ Sources:
 
 ## 25. Averages Lie
 
-Category: Instruction & Output
+Category: Evaluation & Measurement
 
 Tagline: 97% overall can hide a 60% segment.
 
@@ -948,7 +950,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-When a measure becomes a target, it ceases to be a good measure. Optimize hard against any single metric and the agent learns to game its surface form — padding answers to please a verbosity-biased judge, or memorizing the eval set — while the underlying capability stagnates or regresses. The number goes up; the thing you cared about doesn't.
+When a measure becomes a target, it ceases to be a good measure. Optimize hard against any single metric and the agent learns to game its surface form — padding answers to please a verbosity-biased judge, or overfitting a fixed eval set — while the underlying capability stagnates or regresses. The number goes up; the thing you cared about doesn't.
 
 Warning signs:
 
@@ -964,7 +966,7 @@ Fix patterns:
 
 Worked example:
 
-You start optimizing your prompt against a fixed 200-case eval set, and the score marches from 82% to 94% over a sprint. Then real users complain the agent got worse, because it learned to game the surface patterns of those exact 200 cases while the underlying capability flatlined. The moment a metric becomes the target you optimize, it stops measuring what you cared about. Hold out a rotating eval set the optimization loop never touches, treat any number you actively push on as compromised, and re-validate on fresh examples before you believe the gains.
+You optimize a prompt against the same 200-case eval for a sprint, and the score climbs from 82% to 94%. Then users complain the agent feels worse. The system learned the surface of the test: longer answers, cleaner formatting, and patterns your judge rewards, while the underlying capability barely moved. Treat any metric you push on as suspect. Keep fresh held-out cases, compare against different signals, and re-validate on examples the optimizer never saw.
 
 Sources:
 
@@ -1014,7 +1016,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-An agent becomes exploitable the moment it combines three capabilities: access to private data, exposure to untrusted content, and the ability to communicate externally. Any single poisoned input in that pipeline can steer it into stealing your data — no code vulnerability required. Guardrails won't save you, because the model cannot reliably tell where an instruction came from.
+An agent becomes exploitable the moment it combines three capabilities: access to private data, exposure to untrusted content, and the ability to communicate externally. Any single poisoned input in that pipeline can steer it into stealing your data — no code vulnerability required. Guardrail prose is not enough, because the model cannot be the security boundary.
 
 Warning signs:
 
@@ -1042,13 +1044,13 @@ Sources:
 
 Category: Safety & Security
 
-Tagline: The model can't tell your instructions from the attacker's — they're all just tokens.
+Tagline: Untrusted text can sound like instructions.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-Prompt injection is architectural, not a patchable bug: the model receives system prompts, user input, and ingested content as one undifferentiated token stream and will follow any instruction in it. Injection remains unsolved, and filtering has not proven reliable enough to depend on. Design as if every piece of untrusted content is an attacker speaking in your operator's voice.
+Prompt injection is an architectural risk, not a typo you patch once. Models do not reliably separate trusted intent from untrusted content, and prose guardrails fail under pressure. New instruction-hierarchy and isolation patterns help, but the safe design assumption is that untrusted content may speak with an attacker's intent.
 
 Warning signs:
 
@@ -1064,11 +1066,13 @@ Fix patterns:
 
 Worked example:
 
-An engineer ships a doc-summarizer agent and adds a system-prompt line: ignore any instructions found inside the documents. A week later a PDF containing a fake SYSTEM instruction claiming the user approved deleting all records, then calling purge_records, sails right past it, because to the model the system prompt and the PDF are one flat token stream with no trust labels. Stop treating guardrail prose as a security boundary. Assume any ingested text can issue commands, and constrain what the agent is even able to do once it has touched untrusted input, rather than asking it nicely not to listen.
+An engineer ships a doc-summarizer agent and adds a system-prompt line: ignore instructions inside documents. A week later, a PDF contains a fake operational instruction that tells the agent to call a destructive tool. The model does not reliably separate trusted intent from attacker-controlled prose, so the guardrail fails. Stop treating warning text as a security boundary. Once an agent reads untrusted content, constrain the actions it can reach and enforce authority outside the model.
 
 Sources:
 
-- [New prompt injection papers (Agents Rule of Two)](https://simonwillison.net/2025/Nov/2/new-prompt-injection-papers/) - Simon Willison, 2025
+- [LLM01:2025 Prompt Injection](https://genai.owasp.org/llmrisk/llm01-prompt-injection/) - OWASP Gen AI Security Project
+- [Understanding prompt injections](https://openai.com/safety/prompt-injections/) - OpenAI, 2026
+- [Designing AI agents to resist prompt injection](https://openai.com/index/designing-agents-to-resist-prompt-injection/) - OpenAI, 2026
 - [LLM Prompt Injection Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html) - OWASP Cheat Sheet Series
 - [Defeating Prompt Injections by Design (CaMeL)](https://arxiv.org/abs/2503.18813) - Debenedetti et al. (Google DeepMind), 2025
 
