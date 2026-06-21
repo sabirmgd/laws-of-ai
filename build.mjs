@@ -395,7 +395,7 @@ const lawsInCat = (id) => laws.filter((l) => l.category === id);
 
 function editionImg(l) {
   if (!l.image) return "";
-  return `<figure class="lw__fig"><img loading="lazy" src="assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`;
+  return `<figure class="lw__fig"><img loading="lazy" decoding="async" width="${l.image.width}" height="${l.image.height}" src="assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`;
 }
 
 function editionLaw(l) {
@@ -770,7 +770,7 @@ function lawPageHtml(l) {
     .map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener" data-track="source_click" data-source-url="${esc(s.url)}">${esc(s.title)}${s.author ? ` · ${esc(s.author)}` : ""} ${arrow}</a></li>`)
     .join("");
   const img = l.image
-    ? `<figure class="lw__fig"><img loading="lazy" src="/assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`
+    ? `<figure class="lw__fig"><img loading="lazy" decoding="async" width="${l.image.width}" height="${l.image.height}" src="/assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`
     : "";
   const related = relatedLaws(l, 3)
     .map((r) => {
