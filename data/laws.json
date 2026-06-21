@@ -13,10 +13,23 @@
     "locale": "en_US",
     "twitter": "@sabirmgd",
     "ga": "G-YQSH69LQ5P",
+    "product": {
+      "enabled": true,
+      "slug": "ai-agent-audit-kit",
+      "name": "AI Agent Audit Kit: 50 Laws Edition",
+      "shortName": "AI Agent Audit Kit",
+      "price": "$14.90",
+      "currency": "USD",
+      "checkoutProvider": "PayPal",
+      "checkoutUrl": "",
+      "summary": "A field-tested bundle for builders who want AI agents that produce real results: installable audit skill, 50-law rubric, templates, examples, sample audit, and protected access to the illustrated digital edition.",
+      "promise": "Audit your agent like a serious system before users, clients, or production traffic expose the weak points.",
+      "note": "Direct PayPal checkout is handled server-side through the Orders API."
+    },
     "newsletter": {
-      "action": "",
+      "action": "/api/newsletter",
       "field": "email",
-      "note": "Set action to your Kit/MailerLite form POST URL and field to its email input name to switch the on-site signup on."
+      "note": "Set action to the Kit form POST URL and field to its email input name to switch the on-site signup on."
     }
   },
   "categories": [

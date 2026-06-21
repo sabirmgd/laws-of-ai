@@ -77,6 +77,16 @@
     });
   }
 
+  // ---------- Product checkout intent ----------
+  document.querySelectorAll('[data-track="product_checkout_click"]').forEach((link) => {
+    link.addEventListener("click", () => {
+      track("product_checkout_click", {
+        product: link.dataset.product || "ai-agent-audit-kit",
+        page_path: location.pathname,
+      });
+    });
+  });
+
   // ---------- Source-click tracking (modal source link) ----------
   const modalSource = $("#modal-source");
   if (modalSource) {

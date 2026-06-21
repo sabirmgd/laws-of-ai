@@ -25,6 +25,7 @@ const YEAR = "2026";
 const book = loadBook();
 const DATA = { title: book.title, subtitle: book.subtitle, intro: book.intro, categories: book.categories, site: book.site };
 const SITE = book.site;
+const PRODUCT = SITE.product || {};
 
 // ---------- helpers ----------
 const esc = (s = "") =>
@@ -42,6 +43,13 @@ const pad = (n) => String(n).padStart(2, "0");
 const catById = book.catById;
 const laws = book.laws; // already enriched: slug, source, depth, signals, apply, example, sources, image
 const refs = book.refs;
+
+const productEnabled = () => PRODUCT.enabled !== false && PRODUCT.name;
+const productUrl = () => `${SITE.url}/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
+const productPath = () => `/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
+const editionEntryPath = () => productEnabled() ? "/access" : "/edition.html";
+const checkoutHref = () => PRODUCT.checkoutUrl || "#paypal-checkout";
+const checkoutLabel = () => `Get the kit — ${PRODUCT.price || "$14.90"}`;
 
 // ---------- category icons (line, currentColor) ----------
 const ICON_PATHS = {
@@ -161,17 +169,32 @@ function newsletterHtml() {
   const n = SITE.newsletter;
   if (!n || !n.action) return ""; // off until an ESP action URL is configured
   const field = esc(n.field || "email");
+  const action = esc(n.action);
+  const target = /^https?:\/\//.test(n.action) ? ` target="_blank"` : "";
+  const hidden = Object.entries(n.hidden || {})
+    .filter(([, value]) => value !== undefined && value !== null && String(value) !== "")
+    .map(([name, value]) => `<input type="hidden" name="${esc(name)}" value="${esc(value)}" />`)
+    .join("\n        ");
   return `  <section class="signup" id="subscribe" aria-label="Newsletter signup">
     <div class="signup__in">
-      <p class="signup__eyebrow">Free 5-lesson email course</p>
-      <h2 class="signup__title">Get the laws in your inbox</h2>
-      <p class="signup__sub">One law every 5 days, each with a real example and its source. No spam, unsubscribe anytime.</p>
-      <form class="signup__form" action="${esc(n.action)}" method="post" target="_blank">
+      <p class="signup__eyebrow">Free 5-day agent audit course</p>
+      <h2 class="signup__title">Learn the failure modes before you buy the kit</h2>
+      <p class="signup__sub">Five practical lessons on where AI agents break, each with a real example and a fix. No spam, unsubscribe anytime.</p>
+      <form class="signup__form" action="${action}" method="post"${target}>
+        ${hidden}
         <input class="signup__input" type="email" name="${field}" placeholder="you@company.com" autocomplete="email" required />
-        <button class="signup__btn" type="submit">Subscribe</button>
+        <button class="signup__btn" type="submit">Start free</button>
       </form>
     </div>
   </section>`;
+}
+
+function heroCtaHtml() {
+  if (!productEnabled() && !(SITE.newsletter && SITE.newsletter.action)) return "";
+  return `      <div class="hero__actions">
+        ${productEnabled() ? `<a class="hero__btn" href="${productPath()}">Get the audit kit ${arrow}</a>` : ""}
+        ${SITE.newsletter?.action ? `<a class="hero__btn hero__btn--ghost" href="#subscribe">Free 5-day course</a>` : ""}
+      </div>`;
 }
 
 function refsHtml() {
@@ -216,10 +239,11 @@ function navHtml(active) {
       </a>
       <nav class="nav__links" aria-label="Primary">
         ${link("/#main", "All laws", "home")}
-        ${link("/edition.html", "Digital edition", "edition")}
+        ${productEnabled() ? link(productPath(), "Audit kit", "product") : ""}
+        ${link(editionEntryPath(), "Digital edition", "edition")}
         ${link("/#references", "Sources", "refs")}
       </nav>
-      <a class="nav__cta" href="/edition.html">Read the edition ${arrow}</a>
+      <a class="nav__cta" href="${productEnabled() ? productPath() : editionEntryPath()}">${productEnabled() ? "Get the kit" : "Read the edition"} ${arrow}</a>
     </div>
   </header>`;
 }
@@ -330,8 +354,11 @@ ${navHtml("home")}
         <span class="hero__dot">·</span>
         <span>Inspired by <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></span>
       </div>
+${heroCtaHtml()}
     </div>
   </header>
+
+${productEnabled() ? productPromoHtml() : ""}
 
 ${editionPromoHtml()}
 
@@ -458,6 +485,29 @@ function editionToc() {
     .join("\n");
 }
 
+function buyerResourcesHtml() {
+  if (!productEnabled()) return "";
+  const resources = [
+    ["Start here", "/paid/kit/START-HERE.md", "What is included and how to use it."],
+    ["Install skill", "/paid/kit/ai-agent-audit/assets/install-codex-claude.md", "Copy the skill into Codex or Claude."],
+    ["Copy-paste prompt", "/paid/kit/ai-agent-audit/assets/copy-paste-audit-prompt.md", "Use the workflow without installing a skill."],
+    ["Sample audit", "/paid/kit/ai-agent-audit/assets/sample-audit.md", "See the expected output shape."],
+    ["Intake checklist", "/paid/kit/ai-agent-audit/assets/intake-checklist.md", "Gather the right prompts, tools, traces, and evals."],
+    ["Report template", "/paid/kit/ai-agent-audit/assets/audit-report-template.md", "Turn findings into an implementation plan."],
+  ];
+  return `  <section class="buyer" aria-label="Buyer resources">
+    <div>
+      <p class="buyer__eyebrow">Buyer resources</p>
+      <h2>Use the audit skill with the protected edition.</h2>
+      <p>The online book stays protected here. The skill files, rubric, templates, and examples are available behind the same buyer access.</p>
+    </div>
+    <nav class="buyer__links" aria-label="Audit kit files">
+${resources.map(([label, href, note]) => `      <a href="${href}"><span>${esc(label)}</span><small>${esc(note)}</small></a>`).join("\n")}
+    </nav>
+  </section>
+`;
+}
+
 function editionHtml() {
   const canonical = SITE.url + "/edition.html";
   return `<!DOCTYPE html>
@@ -507,6 +557,8 @@ ${navHtml("edition")}
       <button class="ed__btn ed__btn--ghost" id="collapseAll">Collapse all</button>
     </div>
   </header>
+
+${buyerResourcesHtml()}
 
   <aside class="ed__toc" id="edToc" aria-label="Contents">
     <p class="ed__toc-h">Contents</p>
@@ -601,10 +653,21 @@ ${backTopHtml}
 function editionPromoHtml() {
   return `  <section class="promo" aria-label="Digital edition">
     <div class="promo__in">
-      <p class="promo__eyebrow">The Expanded Digital Edition</p>
+      <p class="promo__eyebrow">${productEnabled() ? "Protected Buyer Edition" : "The Expanded Digital Edition"}</p>
       <h2 class="promo__title">Every law, in full — with a diagram for each.</h2>
-      <p class="promo__sub">The mechanism underneath, the warning signs, a worked example, an apply-it recipe, and the sources. ${laws.length} laws, expandable in one place.</p>
-      <a class="promo__btn" href="edition.html">Open the digital edition ${arrow}</a>
+      <p class="promo__sub">The mechanism underneath, the warning signs, a worked example, an apply-it recipe, and the sources. ${laws.length} laws, expandable in one place${productEnabled() ? " for paid buyers" : ""}.</p>
+      <a class="promo__btn" href="${editionEntryPath()}">${productEnabled() ? "Unlock the digital edition" : "Open the digital edition"} ${arrow}</a>
+    </div>
+  </section>`;
+}
+
+function productPromoHtml() {
+  return `  <section class="promo promo--product" aria-label="${esc(PRODUCT.shortName || PRODUCT.name)}">
+    <div class="promo__in">
+      <p class="promo__eyebrow">Paid kit · ${esc(PRODUCT.price || "$14.90")}</p>
+      <h2 class="promo__title">${esc(PRODUCT.name)}</h2>
+      <p class="promo__sub">I built this after building and reviewing real agents. Use the protected 50-law edition plus the installable audit skill to inspect prompts, tools, retrieval, evals, security, and handoffs.</p>
+      <a class="promo__btn" href="${productPath()}">See what is inside ${arrow}</a>
     </div>
   </section>`;
 }
@@ -633,6 +696,16 @@ a{color:inherit;text-decoration:none}
 .ed__btn:hover{transform:translateY(-1px);opacity:.92}
 .ed__btn--ghost{color:var(--text);background:transparent;border-color:var(--border)}
 .ed__btn--ghost:hover{border-color:var(--dim)}
+.buyer{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto 28px;padding:0 24px}
+.buyer>div{padding:20px 0 14px;border-top:1px solid var(--border)}
+.buyer__eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.buyer h2{font-family:var(--serif);font-size:24px;font-weight:500;letter-spacing:-.01em;margin-top:4px}
+.buyer p:not(.buyer__eyebrow){color:var(--dim);margin-top:6px;max-width:660px}
+.buyer__links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.buyer__links a{display:block;min-height:76px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,#14161d 82%,transparent);padding:12px;transition:border-color .2s,background .2s,transform .2s var(--ease)}
+.buyer__links a:hover{border-color:var(--accent);background:var(--card-hover);transform:translateY(-1px)}
+.buyer__links span{display:block;font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600}
+.buyer__links small{display:block;margin-top:4px;color:var(--dim);font-size:12px;line-height:1.35}
 .part{display:flex;gap:16px;align-items:flex-start;margin:54px 0 18px;padding-top:26px;border-top:1px solid var(--border)}
 .part:first-of-type{border-top:none;margin-top:8px}
 .part__ic{width:40px;height:40px;flex:none;display:grid;place-items:center;border-radius:12px;color:var(--ac);background:color-mix(in srgb,var(--ac) 14%,transparent);border:1px solid color-mix(in srgb,var(--ac) 30%,transparent)}
@@ -693,6 +766,7 @@ a{color:inherit;text-decoration:none}
   .ed__toc{position:fixed;top:104px;left:calc((100vw - 840px)/2 - 240px);width:212px;max-width:none;height:auto;max-height:calc(100vh - 150px);padding:0;background:none;border:none;transform:none;visibility:visible;z-index:80}
   .tocfab,.ed__toc-backdrop{display:none}
 }
+@media(max-width:720px){.buyer__links{grid-template-columns:1fr}}
 @media(max-width:560px){.lw__sum{gap:12px;padding:15px 16px}.lw__open{padding:0 16px 18px}.lw__name{font-size:17px}}
 `;
 }
@@ -841,7 +915,7 @@ ${navHtml("home")}
     <span aria-current="page">${esc(l.name)}</span>
   </nav>
 
-  <article class="law__page" style="--ac:${accent}">
+  <article class="law__page" id="main" style="--ac:${accent}">
     <header class="law__hero">
       <p class="law__eyebrow">Law ${pad(l.number)} · ${esc(cat.name || "")}</p>
       <h1 class="law__title">${esc(l.name)}</h1>
@@ -869,14 +943,15 @@ ${related}
     </section>
 
     <section class="law__more">
-      <a class="law__cta" href="/edition.html">Read every law in the digital edition ${arrow}</a>
+      ${productEnabled() ? `<a class="law__cta" href="${productPath()}">Get the audit kit ${arrow}</a>` : ""}
+      <a class="law__cta${productEnabled() ? " law__cta--ghost" : ""}" href="${editionEntryPath()}">${productEnabled() ? "Access the buyer edition" : "Read every law in the digital edition"} ${arrow}</a>
       <a class="law__cta law__cta--ghost" href="/">Back to all ${laws.length} laws</a>
     </section>
   </article>
 
   <footer class="ed__foot">
     <p>${esc(SITE.name)} · by <a href="/sabir/">${esc(SITE.author)}</a> · ${YEAR}</p>
-    <p class="ed__foot-sub"><a href="/">All laws</a> · <a href="/edition.html">Digital edition</a> · Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></p>
+    <p class="ed__foot-sub"><a href="/">All laws</a> · <a href="${editionEntryPath()}">Digital edition</a> · Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></p>
   </footer>
 
 ${backTopHtml}
@@ -1001,7 +1076,7 @@ ${navHtml("home")}
     <span aria-current="page">${esc(cat.name)}</span>
   </nav>
 
-  <article class="law__page" style="--ac:${cat.accent}">
+  <article class="law__page" id="main" style="--ac:${cat.accent}">
     <header class="law__hero">
       <p class="law__eyebrow">Category · ${lawsHere.length} laws</p>
       <h1 class="law__title">${esc(cat.name)}</h1>
@@ -1013,8 +1088,9 @@ ${list}
       </div>
     </section>
     <section class="law__more">
-      <a class="law__cta" href="/">All ${laws.length} laws ${arrow}</a>
-      <a class="law__cta law__cta--ghost" href="/edition.html">Digital edition</a>
+      ${productEnabled() ? `<a class="law__cta" href="${productPath()}">Get the audit kit ${arrow}</a>` : ""}
+      <a class="law__cta${productEnabled() ? " law__cta--ghost" : ""}" href="/">All ${laws.length} laws ${arrow}</a>
+      <a class="law__cta law__cta--ghost" href="${editionEntryPath()}">Digital edition</a>
     </section>
   </article>
 
@@ -1096,7 +1172,7 @@ ${navHtml("home")}
     <span aria-current="page">About</span>
   </nav>
 
-  <article class="law__page">
+  <article class="law__page" id="main">
     <header class="law__hero">
       <p class="law__eyebrow">About the author</p>
       <h1 class="law__title">${esc(SITE.author)}</h1>
@@ -1198,7 +1274,7 @@ ${navHtml("home")}
     <span aria-current="page">Laws of AI vs Laws of UX</span>
   </nav>
 
-  <article class="law__page">
+  <article class="law__page" id="main">
     <header class="law__hero">
       <p class="law__eyebrow">Comparison</p>
       <h1 class="law__title">Laws of AI Agents vs Laws of UX</h1>
@@ -1250,6 +1326,225 @@ ${backTopHtml}
 `;
 }
 
+// ---------- product page ----------
+function productJsonLd() {
+  const url = productUrl();
+  const price = String(PRODUCT.price || "$14.90").replace(/[^0-9.]/g, "") || "14.90";
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: PRODUCT.name,
+    description: PRODUCT.summary,
+    url,
+    image: SITE.ogImage,
+    brand: { "@type": "Brand", name: SITE.name },
+    creator: { "@type": "Person", name: SITE.author, url: `${SITE.url}/sabir/` },
+    offers: {
+      "@type": "Offer",
+      price,
+      priceCurrency: PRODUCT.currency || "USD",
+      availability: "https://schema.org/InStock",
+      url: PRODUCT.checkoutUrl || url,
+    },
+  });
+}
+
+function productPageHtml() {
+  const url = productUrl();
+  const title = `${PRODUCT.name} — ${PRODUCT.price || "$14.90"}`;
+  const description = PRODUCT.summary || "A practical self-audit kit for finding issues in AI agents.";
+  const story = [
+    "I made this because I kept seeing the same pattern while building and reviewing agent systems: the model was rarely the only problem. The real failures came from stale context, vague tools, weak retrieval, missing evals, unsafe permissions, and handoffs nobody had designed.",
+    "Agents matter because they are becoming an interface to real work. They read, decide, call tools, write to systems, and influence customers. A demo can look impressive while the system underneath is still fragile.",
+    "This bundle turns the online 50 Laws of AI Agents edition into a working audit process. You can point it at an agent you are building, find what is likely to break, and get concrete fixes that move the agent closer to producing real results."
+  ];
+  const included = [
+    "Installable ai-agent-audit skill",
+    "Codex/Claude-ready skill folder",
+    "Full 50-law audit rubric",
+    "Extra worked examples",
+    "Agent audit intake checklist",
+    "Audit report template",
+    "Copy-paste audit prompt for non-Codex/Claude users",
+    "Sample audit of a broken agent",
+    "Codex/Claude install instructions",
+    "Protected access to the illustrated online digital edition",
+  ];
+  const checks = [
+    "Context, stale data, and long-context failure modes",
+    "Tool design, scope creep, and deterministic boundary issues",
+    "Retrieval, memory, and citation risks",
+    "Eval blind spots, aggregate metrics, and regression gaps",
+    "Prompt injection, exfiltration, and unsafe autonomy",
+  ];
+  const outcomes = [
+    "A clearer map of where your agent is strong, fragile, or over-scoped",
+    "A prioritized issue list tied to specific laws and concrete evidence",
+    "Fixes for prompts, tools, retrieval, evals, permissions, and human review",
+    "Verification steps so you can prove the fix worked instead of trusting vibes",
+  ];
+  const steps = [
+    "Paste the agent goal, system prompt, tool list, retrieval setup, evals, and one or two traces.",
+    "Run the included skill, or use the copy-paste prompt if your tool does not support skills.",
+    "Review the ranked findings and choose the top 3 fixes that reduce the most risk.",
+    "Use the report template to turn the audit into an implementation plan or client deliverable.",
+  ];
+  const checkoutSetup = PRODUCT.checkoutUrl
+    ? ""
+    : `<div class="product__setup product__checkout" id="paypal-checkout">
+        <p class="lw__lbl lw__lbl--ac">Secure checkout</p>
+        <p>Pay once with PayPal or card. After capture, this browser unlocks the protected digital edition and your checkout email becomes the access email.</p>
+        <label class="product__email-label" for="buyer-email">Checkout email</label>
+        <input class="product__email" id="buyer-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+        <div class="product__paypal-buttons" id="paypal-button-container" aria-live="polite"></div>
+        <p class="product__checkout-status" id="paypal-checkout-status" role="status"></p>
+      </div>`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(description)}" />
+  <meta name="author" content="${esc(SITE.author)}" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="${url}" />
+  <meta property="og:type" content="product" />
+  <meta property="og:title" content="${esc(title)}" />
+  <meta property="og:description" content="${esc(description)}" />
+  <meta property="og:url" content="${url}" />
+  <meta property="og:image" content="${esc(SITE.ogImage)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(title)}" />
+  <meta name="twitter:description" content="${esc(description)}" />
+  <meta name="twitter:image" content="${esc(SITE.ogImage)}" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/edition.css" />
+  <link rel="stylesheet" href="/law.css" />
+  <link rel="stylesheet" href="/nav.css" />
+  <script type="application/ld+json">${productJsonLd()}</script>
+${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
+` : ""}</head>
+
+<body class="ed law product">
+  <div class="grain" aria-hidden="true"></div>
+${navHtml("product")}
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span aria-hidden="true">›</span>
+    <span aria-current="page">${esc(PRODUCT.shortName || PRODUCT.name)}</span>
+  </nav>
+
+  <article class="law__page product__page" id="main">
+    <header class="law__hero product__hero">
+      <p class="law__eyebrow">Paid kit · ${esc(PRODUCT.price || "$14.90")}</p>
+      <h1 class="law__title">${esc(PRODUCT.name)}</h1>
+      <p class="law__sub">${esc(PRODUCT.promise || "Find hidden AI agent failure modes before users do.")}</p>
+      <p class="product__lede">${esc(description)}</p>
+      <div class="product__actions">
+        <a class="law__cta product__buy" href="${checkoutHref()}" ${PRODUCT.checkoutUrl ? `target="_blank" rel="noopener"` : ""} data-track="product_checkout_click" data-product="${esc(PRODUCT.slug || "ai-agent-audit-kit")}">${checkoutLabel()} ${arrow}</a>
+        <a class="law__cta law__cta--ghost" href="${SITE.newsletter?.action ? "/#subscribe" : "/"}">Start with the free course</a>
+      </div>
+      ${checkoutSetup}
+    </header>
+
+    <section class="product__proof" aria-label="What this kit helps find">
+      <div class="product__panel">
+        <p class="lw__lbl lw__lbl--ac">What it does</p>
+        <h2>Turns the 50 laws into a repeatable audit for real AI agents.</h2>
+        <p>Use the included skill or copy-paste prompt to inspect an agent's prompts, tools, retrieval, evals, traces, security boundaries, and human handoffs. The output is a prioritized issue list with evidence, fixes, and verification steps.</p>
+      </div>
+      <div class="product__panel product__panel--metric">
+        <span class="product__price">${esc(PRODUCT.price || "$14.90")}</span>
+        <span class="product__price-sub">skill + protected edition</span>
+        <span class="product__provider">Checkout via ${esc(PRODUCT.checkoutProvider || "PayPal")}</span>
+      </div>
+    </section>
+
+    <section class="product__story" aria-label="Why this kit exists">
+      <p class="lw__lbl lw__lbl--ac">Why I made this</p>
+      <h2>Agents are becoming how work gets done. Weak agents will quietly cost people money, trust, and time.</h2>
+${story.map((p) => `      <p>${esc(p)}</p>`).join("\n")}
+    </section>
+
+    <section class="product__grid" aria-label="Included files">
+      <div>
+        <p class="lw__lbl">Included</p>
+        <ul class="lw__ul">
+${included.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
+        </ul>
+      </div>
+      <div>
+        <p class="lw__lbl">Checks for</p>
+        <ul class="lw__ul">
+${checks.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
+        </ul>
+      </div>
+    </section>
+
+    <section class="product__grid product__grid--steps" aria-label="How to use the kit">
+      <div>
+        <p class="lw__lbl">What you get back</p>
+        <ul class="lw__ul">
+${outcomes.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
+        </ul>
+      </div>
+      <div>
+        <p class="lw__lbl">Use it in 20 minutes</p>
+        <ol class="lw__ul">
+${steps.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
+        </ol>
+      </div>
+    </section>
+
+    <section class="law__body">
+      <div class="lw__call lw__call--take">
+        <p class="lw__lbl lw__lbl--ac">Best first use</p>
+        <p>Paste your agent's architecture, system prompt, tool list, retrieval design, eval setup, and one or two failed traces. Ask the skill to run the audit. It will map concrete issues to specific laws and return fixes you can implement.</p>
+      </div>
+      <h2 class="lw__lbl">Who this is for</h2>
+      <p>AI engineers, founders, agencies, and indie builders who are already shipping or prototyping agent workflows and want a practical way to find reliability and safety problems before production traffic does.</p>
+      <h2 class="lw__lbl">What this is not</h2>
+      <p>It is not a generic prompt pack, ebook, or PDF download. It is a structured audit workflow backed by protected access to the online 50 Laws of AI Agents edition, plus the skill files and templates needed to turn the output into an actionable report.</p>
+    </section>
+
+    <section class="law__more">
+      <a class="law__cta product__buy" href="${checkoutHref()}" ${PRODUCT.checkoutUrl ? `target="_blank" rel="noopener"` : ""} data-track="product_checkout_click" data-product="${esc(PRODUCT.slug || "ai-agent-audit-kit")}">${checkoutLabel()} ${arrow}</a>
+      <a class="law__cta law__cta--ghost" href="/access">Access the digital edition</a>
+    </section>
+  </article>
+
+  <footer class="ed__foot">
+    <p>${esc(SITE.name)} · by <a href="/sabir/">${esc(SITE.author)}</a> · ${YEAR}</p>
+  </footer>
+${backTopHtml}
+  <script>
+    (function(){
+      var nav=document.getElementById('nav'),bt=document.getElementById('backtop');
+      function track(n,p){if(window.gtag){try{window.gtag('event',n,p||{});}catch(_){}}}
+      function status(msg,isError){var el=document.getElementById('paypal-checkout-status');if(el){el.textContent=msg||'';el.classList.toggle('is-error',!!isError);}}
+      function json(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json().then(function(data){if(!r.ok){throw new Error(data.error||'Request failed');}return data;});});}
+      function loadPayPalSdk(cfg){return new Promise(function(resolve,reject){if(window.paypal){resolve();return;}var s=document.createElement('script');s.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency='+encodeURIComponent(cfg.currency||'USD')+'&intent=capture';s.onload=resolve;s.onerror=function(){reject(new Error('PayPal checkout could not load'));};document.head.appendChild(s);});}
+      function initPayPal(){var container=document.getElementById('paypal-button-container'),email=document.getElementById('buyer-email');if(!container||!email)return;fetch('/api/paypal/config',{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(cfg){if(!cfg.configured){status('PayPal checkout is not configured yet.',true);return;}if(cfg.mode==='sandbox'){status('Sandbox checkout active. Use a PayPal sandbox buyer account for testing.',true);}return loadPayPalSdk(cfg).then(function(){window.paypal.Buttons({style:{layout:'vertical',shape:'rect',label:'pay'},onClick:function(_,actions){if(!email.checkValidity()){email.reportValidity();status('Enter the email you want to use for access.',true);return actions.reject();}status('Opening PayPal checkout...');return actions.resolve();},createOrder:function(){return json('/api/paypal/create-order',{email:email.value}).then(function(order){track('product_checkout_start',{product:'ai-agent-audit-kit',provider:'paypal'});return order.id;});},onApprove:function(data){status('Capturing payment...');return json('/api/paypal/capture-order',{orderID:data.orderID,email:email.value}).then(function(result){track('product_checkout_paid',{product:'ai-agent-audit-kit',provider:'paypal'});window.location.href=result.accessUrl||'/paid/edition.html';});},onCancel:function(){status('Checkout canceled.');},onError:function(err){console.error(err);status('PayPal checkout failed. Try again or refresh the page.',true);}}).render('#paypal-button-container');});}).catch(function(err){console.error(err);status('PayPal checkout is unavailable right now.',true);});}
+      function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
+      window.addEventListener('scroll',s,{passive:true});s();
+      if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+      document.querySelectorAll('[data-track="product_checkout_click"]').forEach(function(a){
+        a.addEventListener('click',function(){track('product_checkout_click',{product:a.dataset.product||'ai-agent-audit-kit',checkout_configured:true,provider:'paypal'});});
+      });
+      ${PRODUCT.checkoutUrl ? "" : "initPayPal();"}
+    })();
+  </script>
+</body>
+</html>
+`;
+}
+
 // ---------- law.css (shared by per-law, category, author, comparison pages) ----------
 function lawCss() {
   return `/* Per-law, category, and author page styling (additive to edition.css). */
@@ -1281,6 +1576,34 @@ function lawCss() {
 .law__cta:hover{transform:translateY(-1px);opacity:.92;color:#0a0b0f}
 .law__cta--ghost{color:var(--text);background:transparent;border-color:var(--border)}
 .law__cta--ghost:hover{color:var(--text);border-color:var(--dim)}
+.product__page{--ac:#5ed3a8}
+.product__hero{padding-bottom:8px}
+.product__lede{max-width:680px;color:var(--dim);margin-top:16px;font-size:16px}
+.product__actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.product__buy{background:linear-gradient(135deg,#f3f4f6,#bdf4df);border-color:#bdf4df}
+.product__setup{margin-top:18px;padding:14px 16px;border-radius:14px;border:1px solid color-mix(in srgb,var(--ac) 24%,var(--border));background:color-mix(in srgb,var(--ac) 8%,var(--card));color:var(--dim)}
+.product__setup code{font-family:var(--mono);font-size:.92em;color:var(--text)}
+.product__checkout{max-width:520px;padding:18px}
+.product__email-label{display:block;margin-top:14px;font-family:var(--mono);font-size:12px;color:var(--text)}
+.product__email{width:100%;box-sizing:border-box;margin-top:8px;padding:12px 13px;border:1px solid var(--border);border-radius:10px;background:#0f1218;color:var(--text);font:inherit}
+.product__email:focus{outline:2px solid color-mix(in srgb,var(--ac) 60%,transparent);outline-offset:2px}
+.product__paypal-buttons{min-height:48px;margin-top:14px}
+.product__checkout-status{min-height:20px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--faint)}
+.product__checkout-status.is-error{color:#ffb4a8}
+.product__proof{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,240px);gap:14px;margin-top:28px}
+.product__panel{border:1px solid var(--border);border-radius:16px;background:var(--card);padding:20px}
+.product__panel h2{font-family:var(--serif);font-weight:500;font-size:24px;letter-spacing:-.01em;line-height:1.12;margin-bottom:10px}
+.product__panel p{color:var(--dim)}
+.product__panel--metric{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;background:radial-gradient(120% 140% at 0 0,color-mix(in srgb,var(--ac) 16%,transparent),transparent 60%),var(--card)}
+.product__price{font-family:var(--serif);font-size:48px;line-height:1;color:var(--text)}
+.product__price-sub,.product__provider{font-family:var(--mono);font-size:12px;color:var(--faint);margin-top:8px}
+.product__story{margin-top:34px;padding-top:30px;border-top:1px solid var(--border)}
+.product__story h2{font-family:var(--serif);font-weight:500;font-size:clamp(25px,4vw,34px);line-height:1.12;letter-spacing:-.01em;max-width:780px;margin:8px 0 14px}
+.product__story p{max-width:720px;color:var(--dim);margin:10px 0}
+.product__story .lw__lbl{color:var(--ac,var(--accent))}
+.product__grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px;padding-top:28px;border-top:1px solid var(--border)}
+.product__grid--steps{margin-top:26px}
+@media(max-width:720px){.product__proof,.product__grid{grid-template-columns:1fr}.product__price{font-size:40px}}
 `;
 }
 
@@ -1326,7 +1649,8 @@ ${refs.map((r) => `- [${r.title}](${r.url}) — ${r.source}`).join("\n")}
 function sitemapXml() {
   const urls = [
     { loc: SITE.url + "/", priority: "1.0" },
-    { loc: `${SITE.url}/edition.html`, priority: "0.9" },
+    ...(productEnabled() ? [{ loc: productUrl(), priority: "0.9" }] : []),
+    ...(!productEnabled() ? [{ loc: `${SITE.url}/edition.html`, priority: "0.9" }] : []),
     { loc: `${SITE.url}/sabir/`, priority: "0.6" },
     { loc: `${SITE.url}/laws-of-ai-vs-laws-of-ux/`, priority: "0.7" },
     ...DATA.categories.map((c) => ({ loc: `${SITE.url}/category/${c.id}/`, priority: "0.8" })),
@@ -1404,6 +1728,13 @@ const CMP_DIR = join(DIST, "laws-of-ai-vs-laws-of-ux");
 mkdirSync(CMP_DIR, { recursive: true });
 writeFileSync(join(CMP_DIR, "index.html"), comparisonPageHtml());
 
+// Product page: dist/{product.slug}/index.html
+if (productEnabled()) {
+  const PRODUCT_DIR = join(DIST, PRODUCT.slug || "ai-agent-audit-kit");
+  mkdirSync(PRODUCT_DIR, { recursive: true });
+  writeFileSync(join(PRODUCT_DIR, "index.html"), productPageHtml());
+}
+
 // Copy the hero diagrams used by the digital edition into dist/assets/edition/.
 const EDITION_ASSETS = join(DIST, "assets", "edition");
 mkdirSync(EDITION_ASSETS, { recursive: true });
@@ -1417,5 +1748,6 @@ for (const l of laws) {
 console.log(`✓ Built ${laws.length} laws + ${refs.length} refs -> dist/`);
 console.log(`  · ${laws.length} per-law pages at /law/{slug}/`);
 console.log(`  · ${DATA.categories.length} category hubs at /category/{id}/`);
+if (productEnabled()) console.log(`  · product page at /${PRODUCT.slug || "ai-agent-audit-kit"}/`);
 console.log(`  · author page, comparison page, llms.txt, sitemap`);
 console.log(`  · ${copiedImgs} diagrams copied`);

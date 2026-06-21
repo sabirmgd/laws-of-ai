@@ -2,12 +2,12 @@
 
 A drip sequence of 5 emails, one every 5 days. Each one delivers a single law with a real
 example, builds trust, and points back to the site. Email 5 makes the paid offer for the
-expanded PDF.
+AI Agent Audit Kit.
 
 How to use this: paste each email into your email tool as a sequence step. Set the delay
 between steps to 5 days. Subject and preview text are provided. No em dashes anywhere, on purpose.
 
-Replace `{{FIRST_NAME}}` with your tool's merge tag, and `[PDF LINK]` with your product link
+Replace `{{FIRST_NAME}}` with your tool's merge tag, and `[KIT LINK]` with your product link
 once it exists.
 
 ---
@@ -123,7 +123,7 @@ Sabir
 ## Email 5 — 20 days after signup (the offer)
 
 **Subject:** Give your agent a way to say I do not know
-**Preview:** Lesson 5 of 5. Plus the expanded field guide.
+**Preview:** Lesson 5 of 5. Plus the audit kit.
 
 Hey {{FIRST_NAME}},
 
@@ -141,12 +141,18 @@ Always give the agent a first-class way out. A nullable field, an explicit unkno
 
 That is the 5-lesson course. If these were useful, here is the next step.
 
-I put together the expanded field guide: all 50 laws, every one with its principle, its takeaway, a worked example like the ones in these emails, and a real source so you can go deeper. It is a clean 48-page PDF you can keep next to your keyboard and revisit the next time something breaks in a way you have seen before.
+I put together the AI Agent Audit Kit after building and reviewing many agent systems and seeing the same failures repeat. The model was rarely the only problem. The agent broke because context was stale, tools were vague, retrieval missed the right facts, evals were missing, permissions were too broad, or nobody designed the handoff when the agent got stuck.
 
-Get the expanded field guide: [PDF LINK]
+Agents are becoming an interface to real work. They read, decide, call tools, write into systems, and affect customers. A demo can look impressive while the system underneath is fragile.
+
+The kit turns the online 50 Laws of AI Agents edition into a practical audit workflow: an installable audit skill, the full 50-law audit rubric, extra examples, an intake checklist, an audit report template, a copy-paste prompt for non-skill users, and a sample audit of a broken agent.
+
+The point is simple: you can take an agent you are building, paste in its prompts, tools, retrieval setup, evals, and traces, and get back a prioritized list of what is likely to break and how to fix it.
+
+Get the AI Agent Audit Kit: [KIT LINK]
 
 Thanks for reading. Go build agents people actually trust.
 
 Sabir
 
-P.S. The living deck stays free and keeps growing at https://laws.deleg8.dev. The PDF is for when you want the whole thing in one place, with the examples and the receipts.
+P.S. The living deck stays free and keeps growing at https://laws.deleg8.dev. The kit is for when you want the laws turned into an audit workflow you can actually run.

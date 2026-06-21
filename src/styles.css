@@ -115,6 +115,28 @@ a:hover { color: var(--accent); }
 }
 .hero__count { color: var(--text); }
 .hero__dot { opacity: 0.4; }
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 26px;
+}
+.hero__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: #0a0b0f;
+  background: var(--text);
+  border: 1px solid var(--text);
+  border-radius: 999px;
+  padding: 11px 19px;
+  transition: transform 0.2s var(--ease), opacity 0.2s;
+}
+.hero__btn:hover { transform: translateY(-1px); opacity: 0.92; color: #0a0b0f; }
+.hero__btn--ghost { color: var(--text); background: transparent; border-color: var(--border); }
+.hero__btn--ghost:hover { color: var(--text); border-color: var(--text-dim); }
 
 /* ---------- Filters ---------- */
 .filters {
@@ -661,6 +683,14 @@ a:hover { color: var(--accent); }
   transition: transform 0.2s var(--ease), opacity 0.2s;
 }
 .promo__btn:hover { transform: translateY(-1px); opacity: 0.92; color: #0a0b0f; }
+.promo--product .promo__in {
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(94, 211, 168, 0.14), transparent 60%),
+    radial-gradient(100% 120% at 100% 100%, rgba(245, 185, 94, 0.08), transparent 62%),
+    linear-gradient(180deg, var(--card), var(--bg-soft));
+}
+.promo--product .promo__eyebrow { color: #5ed3a8; }
+.promo--product .promo__btn { background: linear-gradient(135deg, #f3f4f6, #bdf4df); }
 
 /* ---------- Sticky filter bar + count (index) ---------- */
 .filterbar {
