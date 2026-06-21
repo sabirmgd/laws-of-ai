@@ -131,7 +131,7 @@ function cardHtml(l) {
             <span class="card__icon">${icon(cat.icon)}</span>
             <span class="card__number">${pad(l.number)}</span>
           </div>
-          <h2 class="card__name"><a href="#${l.slug}" class="card__link">${esc(l.name)}</a></h2>
+          <h2 class="card__name"><a href="/law/${l.slug}/" class="card__link">${esc(l.name)}</a></h2>
           <p class="card__tagline">${esc(l.tagline)}</p>
           <div class="card__detail" hidden>
             <h3>The principle</h3>
@@ -210,16 +210,16 @@ function navHtml(active) {
   return `  <a class="skip" href="#main">Skip to content</a>
   <header class="nav" id="nav">
     <div class="nav__in">
-      <a class="nav__brand" href="index.html" aria-label="${esc(SITE.name)} — home">
+      <a class="nav__brand" href="/" aria-label="${esc(SITE.name)} — home">
         <span class="nav__mark">${navMark}</span>
         <span class="nav__brandtx">Laws of AI Agents</span>
       </a>
       <nav class="nav__links" aria-label="Primary">
-        ${link("index.html#main", "All laws", "home")}
-        ${link("edition.html", "Digital edition", "edition")}
-        ${link("index.html#references", "Sources", "refs")}
+        ${link("/#main", "All laws", "home")}
+        ${link("/edition.html", "Digital edition", "edition")}
+        ${link("/#references", "Sources", "refs")}
       </nav>
-      <a class="nav__cta" href="edition.html">Read the edition ${arrow}</a>
+      <a class="nav__cta" href="/edition.html">Read the edition ${arrow}</a>
     </div>
   </header>`;
 }
@@ -697,12 +697,640 @@ a{color:inherit;text-decoration:none}
 `;
 }
 
+// ---------- per-law page (one URL per law, fully crawlable) ----------
+function relatedLaws(law, n = 3) {
+  // Same category first, excluding self; pad with numeric neighbors if needed.
+  const sib = laws.filter((x) => x.category === law.category && x.slug !== law.slug);
+  const pool = sib.slice(0, n);
+  if (pool.length < n) {
+    const extras = laws
+      .filter((x) => x.slug !== law.slug && !pool.find((p) => p.slug === x.slug))
+      .sort((a, b) => Math.abs(a.number - law.number) - Math.abs(b.number - law.number));
+    for (const e of extras) {
+      if (pool.length >= n) break;
+      pool.push(e);
+    }
+  }
+  return pool.slice(0, n);
+}
+
+function lawJsonLd(l) {
+  const cat = catById[l.category] || {};
+  const url = `${SITE.url}/law/${l.slug}/`;
+  const graph = [
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: SITE.url + "/" },
+        { "@type": "ListItem", position: 2, name: cat.name || "Category", item: `${SITE.url}/category/${l.category}/` },
+        { "@type": "ListItem", position: 3, name: l.name, item: url },
+      ],
+    },
+    {
+      "@type": "DefinedTerm",
+      "@id": url + "#term",
+      name: l.name,
+      description: l.tagline,
+      inDefinedTermSet: `${SITE.url}/#termset`,
+      termCode: String(l.number),
+      url,
+      additionalProperty: [
+        { "@type": "PropertyValue", name: "Principle", value: l.principle },
+        { "@type": "PropertyValue", name: "Takeaway", value: l.takeaway },
+        { "@type": "PropertyValue", name: "Category", value: cat.name || "" },
+      ],
+      ...(l.source?.url
+        ? { subjectOf: { "@type": "CreativeWork", name: l.source.title, url: l.source.url } }
+        : {}),
+    },
+    {
+      "@type": "Article",
+      "@id": url + "#article",
+      headline: `${l.name} — ${l.tagline}`,
+      description: l.principle.slice(0, 280),
+      url,
+      mainEntityOfPage: url,
+      author: { "@type": "Person", name: SITE.author, url: `${SITE.url}/sabir/` },
+      publisher: { "@type": "Organization", name: SITE.name, url: SITE.url + "/" },
+      inLanguage: "en",
+      isPartOf: `${SITE.url}/#website`,
+      image: l.image ? `${SITE.url}/assets/edition/${l.image.file}` : SITE.ogImage,
+    },
+  ];
+  return JSON.stringify({ "@context": "https://schema.org", "@graph": graph });
+}
+
+function lawPageHtml(l) {
+  const cat = catById[l.category] || {};
+  const accent = cat.accent || "#7c9cff";
+  const url = `${SITE.url}/law/${l.slug}/`;
+  const signals = (l.signals || []).map((s) => `<li>${esc(s)}</li>`).join("");
+  const apply = (l.apply || []).map((s) => `<li>${esc(s)}</li>`).join("");
+  const sources = (l.sources || [])
+    .map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener" data-track="source_click" data-source-url="${esc(s.url)}">${esc(s.title)}${s.author ? ` · ${esc(s.author)}` : ""} ${arrow}</a></li>`)
+    .join("");
+  const img = l.image
+    ? `<figure class="lw__fig"><img loading="lazy" src="/assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`
+    : "";
+  const related = relatedLaws(l, 3)
+    .map((r) => {
+      const rcat = catById[r.category] || {};
+      return `        <a class="rel__card" href="/law/${r.slug}/" style="--ac:${rcat.accent || "#7c9cff"}">
+          <span class="rel__no">${pad(r.number)}</span>
+          <span class="rel__body">
+            <span class="rel__name">${esc(r.name)}</span>
+            <span class="rel__tag">${esc(r.tagline)}</span>
+            <span class="rel__cat">${esc(rcat.name || "")}</span>
+          </span>
+        </a>`;
+    })
+    .join("\n");
+
+  const description = (l.tagline + " " + l.principle).slice(0, 300);
+  const title = `${l.name} — ${l.tagline} | ${SITE.name}`;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(description)}" />
+  <meta name="author" content="${esc(SITE.author)}" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="theme-color" content="#0b0c10" />
+  <link rel="canonical" href="${url}" />
+
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="${esc(SITE.name)}" />
+  <meta property="og:title" content="${esc(l.name)} — ${esc(l.tagline)}" />
+  <meta property="og:description" content="${esc(description)}" />
+  <meta property="og:url" content="${url}" />
+  <meta property="og:locale" content="${esc(SITE.locale)}" />
+  <meta property="og:image" content="${l.image ? `${SITE.url}/assets/edition/${l.image.file}` : esc(SITE.ogImage)}" />
+  <meta property="og:image:alt" content="${esc(l.name)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${esc(l.name)} — ${esc(l.tagline)}" />
+  <meta name="twitter:description" content="${esc(description)}" />
+  <meta name="twitter:image" content="${l.image ? `${SITE.url}/assets/edition/${l.image.file}` : esc(SITE.ogImage)}" />
+  <meta name="twitter:creator" content="${esc(SITE.twitter)}" />
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/edition.css" />
+  <link rel="stylesheet" href="/law.css" />
+  <link rel="stylesheet" href="/nav.css" />
+
+  <script type="application/ld+json">${lawJsonLd(l)}</script>
+${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
+` : ""}</head>
+
+<body class="ed law">
+  <div class="grain" aria-hidden="true"></div>
+${navHtml("home")}
+  <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span aria-hidden="true">›</span>
+    <a href="/category/${l.category}/">${esc(cat.name || "")}</a>
+    <span aria-hidden="true">›</span>
+    <span aria-current="page">${esc(l.name)}</span>
+  </nav>
+
+  <article class="law__page" style="--ac:${accent}">
+    <header class="law__hero">
+      <p class="law__eyebrow">Law ${pad(l.number)} · ${esc(cat.name || "")}</p>
+      <h1 class="law__title">${esc(l.name)}</h1>
+      <p class="law__sub">${esc(l.tagline)}</p>
+    </header>
+
+    ${img}
+
+    <section class="law__body">
+      <h2 class="lw__lbl">The principle</h2>
+      <p>${esc(l.principle)}</p>
+      ${l.depth ? `<h2 class="lw__lbl">Why it happens</h2><p>${esc(l.depth)}</p>` : ""}
+      ${signals ? `<h2 class="lw__lbl">Watch for</h2><ul class="lw__ul">${signals}</ul>` : ""}
+      ${l.example ? `<div class="lw__call"><p class="lw__lbl lw__lbl--ac">In practice</p><p>${esc(l.example)}</p></div>` : ""}
+      ${apply ? `<h2 class="lw__lbl lw__lbl--ac">Apply it</h2><ol class="lw__ol">${apply}</ol>` : ""}
+      <div class="lw__call lw__call--take"><p class="lw__lbl lw__lbl--ac">The takeaway</p><p>${esc(l.takeaway)}</p></div>
+      ${sources ? `<h2 class="lw__lbl">Sources and further reading</h2><ul class="lw__src">${sources}</ul>` : ""}
+    </section>
+
+    <section class="rel" aria-label="Related laws">
+      <h2 class="rel__h">Related laws</h2>
+      <div class="rel__grid">
+${related}
+      </div>
+    </section>
+
+    <section class="law__more">
+      <a class="law__cta" href="/edition.html">Read every law in the digital edition ${arrow}</a>
+      <a class="law__cta law__cta--ghost" href="/">Back to all ${laws.length} laws</a>
+    </section>
+  </article>
+
+  <footer class="ed__foot">
+    <p>${esc(SITE.name)} · by <a href="/sabir/">${esc(SITE.author)}</a> · ${YEAR}</p>
+    <p class="ed__foot-sub"><a href="/">All laws</a> · <a href="/edition.html">Digital edition</a> · Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></p>
+  </footer>
+
+${backTopHtml}
+  <script>
+    (function(){
+      var t=function(n,p){if(window.gtag){window.gtag('event',n,p||{});}};
+      // back-to-top
+      var nav=document.getElementById('nav');
+      var bt=document.getElementById('backtop');
+      var bar=document.getElementById('progressBar');
+      var fired75=false;
+      function s(){
+        var d=document.documentElement;
+        var max=(d.scrollHeight-d.clientHeight)||1;
+        var y=window.scrollY||0;
+        var p=Math.min(100,(y/max)*100);
+        if(bar)bar.style.width=p+'%';
+        if(nav)nav.classList.toggle('is-scrolled',y>8);
+        if(bt)bt.classList.toggle('is-on',y>560);
+        if(!fired75&&p>=75){fired75=true;t('scroll_75',{page_path:location.pathname});}
+      }
+      window.addEventListener('scroll',s,{passive:true});s();
+      if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+      // source-click tracking
+      document.querySelectorAll('[data-track="source_click"]').forEach(function(a){
+        a.addEventListener('click',function(){t('source_click',{source_url:a.dataset.sourceUrl||a.href,law_slug:location.pathname});});
+      });
+      // log the law open as a page-level event so funnel reports work
+      t('law_view',{law_slug:location.pathname});
+    })();
+  </script>
+</body>
+</html>
+`;
+}
+
+// ---------- category hub ----------
+function categoryJsonLd(cat, lawsHere) {
+  const url = `${SITE.url}/category/${cat.id}/`;
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: SITE.url + "/" },
+          { "@type": "ListItem", position: 2, name: cat.name, item: url },
+        ],
+      },
+      {
+        "@type": "CollectionPage",
+        url,
+        name: `${cat.name} — Laws of AI Agents`,
+        description: cat.blurb,
+        isPartOf: `${SITE.url}/#website`,
+        hasPart: {
+          "@type": "ItemList",
+          numberOfItems: lawsHere.length,
+          itemListElement: lawsHere.map((l) => ({
+            "@type": "ListItem",
+            position: l.number,
+            url: `${SITE.url}/law/${l.slug}/`,
+            name: l.name,
+          })),
+        },
+      },
+    ],
+  });
+}
+
+function categoryPageHtml(cat) {
+  const lawsHere = lawsInCat(cat.id);
+  const url = `${SITE.url}/category/${cat.id}/`;
+  const list = lawsHere
+    .map(
+      (l) => `      <a class="rel__card" href="/law/${l.slug}/" style="--ac:${cat.accent}">
+        <span class="rel__no">${pad(l.number)}</span>
+        <span class="rel__body">
+          <span class="rel__name">${esc(l.name)}</span>
+          <span class="rel__tag">${esc(l.tagline)}</span>
+        </span>
+      </a>`
+    )
+    .join("\n");
+  const title = `${cat.name} — Laws of AI Agents`;
+  const description = `${cat.blurb} ${lawsHere.length} laws covering ${cat.name.toLowerCase()} in AI agent design.`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(description)}" />
+  <meta name="author" content="${esc(SITE.author)}" />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="${url}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="${esc(title)}" />
+  <meta property="og:description" content="${esc(description)}" />
+  <meta property="og:url" content="${url}" />
+  <meta property="og:image" content="${esc(SITE.ogImage)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/edition.css" />
+  <link rel="stylesheet" href="/law.css" />
+  <link rel="stylesheet" href="/nav.css" />
+  <script type="application/ld+json">${categoryJsonLd(cat, lawsHere)}</script>
+${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
+` : ""}</head>
+
+<body class="ed law">
+  <div class="grain" aria-hidden="true"></div>
+${navHtml("home")}
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span aria-hidden="true">›</span>
+    <span aria-current="page">${esc(cat.name)}</span>
+  </nav>
+
+  <article class="law__page" style="--ac:${cat.accent}">
+    <header class="law__hero">
+      <p class="law__eyebrow">Category · ${lawsHere.length} laws</p>
+      <h1 class="law__title">${esc(cat.name)}</h1>
+      <p class="law__sub">${esc(cat.blurb)}</p>
+    </header>
+    <section class="rel" aria-label="Laws in this category">
+      <div class="rel__grid">
+${list}
+      </div>
+    </section>
+    <section class="law__more">
+      <a class="law__cta" href="/">All ${laws.length} laws ${arrow}</a>
+      <a class="law__cta law__cta--ghost" href="/edition.html">Digital edition</a>
+    </section>
+  </article>
+
+  <footer class="ed__foot">
+    <p>${esc(SITE.name)} · by <a href="/sabir/">${esc(SITE.author)}</a> · ${YEAR}</p>
+  </footer>
+${backTopHtml}
+  <script>
+    (function(){
+      var nav=document.getElementById('nav'),bt=document.getElementById('backtop');
+      function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
+      window.addEventListener('scroll',s,{passive:true});s();
+      if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+    })();
+  </script>
+</body>
+</html>
+`;
+}
+
+// ---------- author page ----------
+function authorPageHtml() {
+  const url = `${SITE.url}/sabir/`;
+  const personJsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "@id": url + "#person",
+    name: SITE.author,
+    url,
+    sameAs: [
+      "https://twitter.com/sabirmgd",
+      "https://x.com/sabirmgd",
+      "https://github.com/sabirmgds",
+      "https://linkedin.com/in/sabirmoglad",
+    ],
+    description: `Builder of AI agents in production. Author of ${SITE.name}.`,
+    knowsAbout: [
+      "AI agents", "LLM applications", "Retrieval augmented generation",
+      "Agent evaluation", "Prompt engineering", "Agent architecture",
+    ],
+  });
+  const title = `About ${SITE.author} — ${SITE.name}`;
+  const description = `${SITE.author} is the author of ${SITE.name}: 50 hard-won, source-backed heuristics for building AI agents that actually work.`;
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(description)}" />
+  <meta name="author" content="${esc(SITE.author)}" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="${url}" />
+  <meta property="og:type" content="profile" />
+  <meta property="og:title" content="${esc(title)}" />
+  <meta property="og:description" content="${esc(description)}" />
+  <meta property="og:url" content="${url}" />
+  <meta property="og:image" content="${esc(SITE.ogImage)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/edition.css" />
+  <link rel="stylesheet" href="/law.css" />
+  <link rel="stylesheet" href="/nav.css" />
+  <script type="application/ld+json">${personJsonLd}</script>
+${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
+` : ""}</head>
+
+<body class="ed law">
+  <div class="grain" aria-hidden="true"></div>
+${navHtml("home")}
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span aria-hidden="true">›</span>
+    <span aria-current="page">About</span>
+  </nav>
+
+  <article class="law__page">
+    <header class="law__hero">
+      <p class="law__eyebrow">About the author</p>
+      <h1 class="law__title">${esc(SITE.author)}</h1>
+      <p class="law__sub">Builder of AI agents in production — and the author of ${esc(SITE.name)}.</p>
+    </header>
+
+    <section class="law__body">
+      <p>I'm an engineer building AI agent systems across multiple production codebases. ${esc(SITE.name)} is the field notebook: every law is a heuristic I learned the expensive way and then went looking for the paper or essay that explained why.</p>
+      <p>The site is deliberately model-agnostic. The laws apply whether you're using Claude, GPT, Gemini, or open-weights — because the failure modes live in the architecture of agent systems, not in any one model.</p>
+      <h2 class="lw__lbl">What I work on</h2>
+      <ul class="lw__ul">
+        <li>Multi-agent pipelines for enterprise document processing</li>
+        <li>Retrieval-augmented systems with strict citation contracts</li>
+        <li>Agent evaluation harnesses and observability tooling</li>
+        <li>Prompt engineering, tool design, and scope reduction</li>
+      </ul>
+      <h2 class="lw__lbl">Find me</h2>
+      <ul class="lw__ul">
+        <li><a href="https://twitter.com/sabirmgd" target="_blank" rel="noopener">Twitter / X — @sabirmgd</a></li>
+        <li><a href="https://github.com/sabirmgds" target="_blank" rel="noopener">GitHub — sabirmgds</a></li>
+        <li><a href="https://linkedin.com/in/sabirmoglad" target="_blank" rel="noopener">LinkedIn</a></li>
+      </ul>
+      <div class="lw__call lw__call--take">
+        <p class="lw__lbl lw__lbl--ac">Get the laws in your inbox</p>
+        <p>Five lessons, one law each, with the source and a real example. <a href="/#subscribe">Subscribe →</a></p>
+      </div>
+    </section>
+  </article>
+
+  <footer class="ed__foot">
+    <p>${esc(SITE.name)} · ${YEAR}</p>
+  </footer>
+${backTopHtml}
+  <script>
+    (function(){
+      var nav=document.getElementById('nav'),bt=document.getElementById('backtop');
+      function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
+      window.addEventListener('scroll',s,{passive:true});s();
+      if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+    })();
+  </script>
+</body>
+</html>
+`;
+}
+
+// ---------- comparison page ----------
+function comparisonPageHtml() {
+  const url = `${SITE.url}/laws-of-ai-vs-laws-of-ux/`;
+  const title = `Laws of AI Agents vs Laws of UX — what's different, what's the same`;
+  const description = `A side-by-side look at two heuristic decks: Laws of UX (Jon Yablonski) for interface design and Laws of AI Agents (Sabir Moglad) for agent systems. What they share, where they diverge.`;
+  const jsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: title,
+    description,
+    url,
+    mainEntityOfPage: url,
+    author: { "@type": "Person", name: SITE.author, url: `${SITE.url}/sabir/` },
+    publisher: { "@type": "Organization", name: SITE.name, url: SITE.url + "/" },
+    inLanguage: "en",
+    image: SITE.ogImage,
+  });
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${esc(title)}</title>
+  <meta name="description" content="${esc(description)}" />
+  <meta name="author" content="${esc(SITE.author)}" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="${url}" />
+  <meta property="og:type" content="article" />
+  <meta property="og:title" content="${esc(title)}" />
+  <meta property="og:description" content="${esc(description)}" />
+  <meta property="og:url" content="${url}" />
+  <meta property="og:image" content="${esc(SITE.ogImage)}" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/edition.css" />
+  <link rel="stylesheet" href="/law.css" />
+  <link rel="stylesheet" href="/nav.css" />
+  <script type="application/ld+json">${jsonLd}</script>
+${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
+` : ""}</head>
+
+<body class="ed law">
+  <div class="grain" aria-hidden="true"></div>
+${navHtml("home")}
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    <a href="/">Home</a>
+    <span aria-hidden="true">›</span>
+    <span aria-current="page">Laws of AI vs Laws of UX</span>
+  </nav>
+
+  <article class="law__page">
+    <header class="law__hero">
+      <p class="law__eyebrow">Comparison</p>
+      <h1 class="law__title">Laws of AI Agents vs Laws of UX</h1>
+      <p class="law__sub">Two heuristic decks, one shared format — but they're solving very different problems.</p>
+    </header>
+    <section class="law__body">
+      <p><a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a> by Jon Yablonski is the canonical reference for psychology-grounded interface heuristics — Hick's Law, Fitts's Law, the Aesthetic-Usability Effect. It works because the underlying science (human perception, cognition, attention) is decades old and remarkably stable.</p>
+      <p><a href="/">Laws of AI Agents</a> borrows that format because the format is excellent: a numbered deck of named principles, each one short, memorable, and citable. But the content is doing something different: capturing fast-moving, hard-won knowledge about systems where the substrate (the model) changes every few months.</p>
+
+      <h2 class="lw__lbl">What they share</h2>
+      <ul class="lw__ul">
+        <li><strong>Format</strong>: numbered, named, one-paragraph principles you can link to in a code review or design crit.</li>
+        <li><strong>Authority pattern</strong>: each law cites a source — the paper, essay, or piece of empirical work it leans on.</li>
+        <li><strong>Audience</strong>: practitioners shipping things, not academics defending theses.</li>
+      </ul>
+
+      <h2 class="lw__lbl">Where they diverge</h2>
+      <ul class="lw__ul">
+        <li><strong>Stability</strong>: UX laws are grounded in cognitive science that's been stable for 50+ years. AI agent laws are grounded in observations that may be invalidated by next year's model.</li>
+        <li><strong>Failure mode</strong>: A UX law violation produces friction. An AI agent law violation can produce confident, plausible, completely wrong output that nobody catches until production.</li>
+        <li><strong>Substrate</strong>: UX laws assume a relatively fixed human. AI laws assume a substrate (the model) that's moving under you.</li>
+        <li><strong>Tone</strong>: Laws of UX are descriptive ("here is how minds work"). Laws of AI Agents are prescriptive ("here is what will burn you if you don't").</li>
+      </ul>
+
+      <h2 class="lw__lbl">If you only read one</h2>
+      <p>If you're shipping interfaces to humans, start with <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a>. If you're shipping systems where an LLM is making decisions, <a href="/">start here</a> — and then read Laws of UX anyway, because the agent is still going to be talked to by a human.</p>
+
+      <div class="lw__call lw__call--take">
+        <p class="lw__lbl lw__lbl--ac">Browse the deck</p>
+        <p><a href="/">All 50 Laws of AI Agents →</a></p>
+      </div>
+    </section>
+  </article>
+
+  <footer class="ed__foot">
+    <p>${esc(SITE.name)} · by <a href="/sabir/">${esc(SITE.author)}</a> · ${YEAR}</p>
+  </footer>
+${backTopHtml}
+  <script>
+    (function(){
+      var nav=document.getElementById('nav'),bt=document.getElementById('backtop');
+      function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
+      window.addEventListener('scroll',s,{passive:true});s();
+      if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+    })();
+  </script>
+</body>
+</html>
+`;
+}
+
+// ---------- law.css (shared by per-law, category, author, comparison pages) ----------
+function lawCss() {
+  return `/* Per-law, category, and author page styling (additive to edition.css). */
+.crumb{position:relative;z-index:2;max-width:var(--maxw,840px);margin:18px auto 0;padding:0 24px;font-family:var(--mono);font-size:12px;color:var(--faint);display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+.crumb a{color:var(--dim);transition:color .2s}
+.crumb a:hover{color:var(--accent)}
+.crumb [aria-current]{color:var(--text)}
+.law__page{position:relative;z-index:2;max-width:var(--maxw,840px);margin:0 auto;padding:clamp(28px,5vw,56px) 24px 24px}
+.law__hero{margin-bottom:24px}
+.law__eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--ac,var(--accent))}
+.law__title{font-family:var(--serif);font-weight:500;font-size:clamp(32px,5.5vw,52px);line-height:1.04;letter-spacing:-.02em;margin-top:12px}
+.law__sub{font-family:var(--serif);font-style:italic;font-size:clamp(17px,2.2vw,21px);color:var(--ac,var(--accent));margin-top:12px}
+.law__body{margin-top:8px}
+.law__body p{margin:10px 0}
+.law__body h2.lw__lbl{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-top:26px;margin-bottom:6px;font-weight:600}
+.law__body h2.lw__lbl.lw__lbl--ac{color:var(--ac,var(--accent))}
+.rel{margin-top:48px;padding-top:28px;border-top:1px solid var(--border)}
+.rel__h{font-family:var(--serif);font-weight:500;font-size:22px;letter-spacing:-.01em;margin-bottom:14px}
+.rel__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.rel__card{display:flex;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:14px;background:var(--card);transition:border-color .2s,transform .2s var(--ease),background .2s}
+.rel__card:hover{border-color:color-mix(in srgb,var(--ac,#7c9cff) 50%,var(--border));background:var(--card-hover);transform:translateY(-1px)}
+.rel__no{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ac,#7c9cff);flex:none}
+.rel__body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.rel__name{font-family:var(--serif);font-size:16px;font-weight:500;letter-spacing:-.01em;color:var(--text)}
+.rel__tag{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--dim)}
+.rel__cat{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-top:2px}
+.law__more{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:48px;padding-top:28px;border-top:1px solid var(--border)}
+.law__cta{font-family:var(--mono);font-size:13px;color:#0a0b0f;background:var(--text);border:1px solid var(--text);border-radius:99px;padding:10px 18px;display:inline-flex;align-items:center;gap:7px;transition:transform .2s var(--ease),opacity .2s}
+.law__cta:hover{transform:translateY(-1px);opacity:.92;color:#0a0b0f}
+.law__cta--ghost{color:var(--text);background:transparent;border-color:var(--border)}
+.law__cta--ghost:hover{color:var(--text);border-color:var(--dim)}
+`;
+}
+
+// ---------- llms.txt ----------
+function llmsTxt() {
+  // llmstxt.org convention: a single markdown file that gives LLMs a clean
+  // overview + deep links to authoritative pages. Citations love this.
+  const byCat = DATA.categories
+    .map((c) => {
+      const ls = lawsInCat(c.id);
+      const items = ls
+        .map(
+          (l) =>
+            `- [${l.name}](${SITE.url}/law/${l.slug}/): ${l.tagline} _Takeaway_: ${l.takeaway}`
+        )
+        .join("\n");
+      return `### ${c.name}\n${c.blurb}\n\n${items}`;
+    })
+    .join("\n\n");
+  return `# ${SITE.name}
+
+> ${SITE.description}
+
+Author: ${SITE.author} (${SITE.url}/sabir/)
+Format: ${laws.length} numbered, source-backed laws across ${DATA.categories.length} categories.
+Inspired by: Laws of UX (https://lawsofux.com).
+
+## How to cite
+When citing a specific law, link to its canonical URL: \`${SITE.url}/law/{slug}/\`.
+When citing the deck as a whole, link to ${SITE.url}/.
+Each law has an attributed source — please cite that as well when applicable.
+
+## Laws
+
+${byCat}
+
+## Further reading
+${refs.map((r) => `- [${r.title}](${r.url}) — ${r.source}`).join("\n")}
+`;
+}
+
+// ---------- sitemap (all crawlable URLs) ----------
 function sitemapXml() {
   const urls = [
     { loc: SITE.url + "/", priority: "1.0" },
     { loc: `${SITE.url}/edition.html`, priority: "0.9" },
-    ...laws.map((l) => ({ loc: `${SITE.url}/#${l.slug}`, priority: "0.7" })),
-    { loc: `${SITE.url}/#references`, priority: "0.5" },
+    { loc: `${SITE.url}/sabir/`, priority: "0.6" },
+    { loc: `${SITE.url}/laws-of-ai-vs-laws-of-ux/`, priority: "0.7" },
+    ...DATA.categories.map((c) => ({ loc: `${SITE.url}/category/${c.id}/`, priority: "0.8" })),
+    ...laws.map((l) => ({ loc: `${SITE.url}/law/${l.slug}/`, priority: "0.8" })),
   ];
   const body = urls
     .map(
@@ -735,9 +1363,11 @@ const publicData = {
 writeFileSync(join(DIST, "index.html"), indexHtml());
 writeFileSync(join(DIST, "edition.html"), editionHtml());
 writeFileSync(join(DIST, "edition.css"), editionCss());
+writeFileSync(join(DIST, "law.css"), lawCss());
 writeFileSync(join(DIST, "nav.css"), navCss());
 writeFileSync(join(DIST, "sitemap.xml"), sitemapXml());
 writeFileSync(join(DIST, "robots.txt"), robotsTxt());
+writeFileSync(join(DIST, "llms.txt"), llmsTxt());
 writeFileSync(join(DIST, "laws.json"), JSON.stringify(publicData, null, 2));
 
 for (const asset of ["styles.css", "app.js", "favicon.svg"]) {
@@ -745,6 +1375,34 @@ for (const asset of ["styles.css", "app.js", "favicon.svg"]) {
 }
 const og = join(ROOT, "src", "og-image.png");
 if (existsSync(og)) copyFileSync(og, join(DIST, "og-image.png"));
+
+// Per-law pages: dist/law/{slug}/index.html
+const LAW_DIR = join(DIST, "law");
+mkdirSync(LAW_DIR, { recursive: true });
+for (const l of laws) {
+  const dir = join(LAW_DIR, l.slug);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "index.html"), lawPageHtml(l));
+}
+
+// Category hub pages: dist/category/{id}/index.html
+const CAT_DIR = join(DIST, "category");
+mkdirSync(CAT_DIR, { recursive: true });
+for (const c of DATA.categories) {
+  const dir = join(CAT_DIR, c.id);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, "index.html"), categoryPageHtml(c));
+}
+
+// Author page: dist/sabir/index.html
+const SABIR_DIR = join(DIST, "sabir");
+mkdirSync(SABIR_DIR, { recursive: true });
+writeFileSync(join(SABIR_DIR, "index.html"), authorPageHtml());
+
+// Comparison page: dist/laws-of-ai-vs-laws-of-ux/index.html
+const CMP_DIR = join(DIST, "laws-of-ai-vs-laws-of-ux");
+mkdirSync(CMP_DIR, { recursive: true });
+writeFileSync(join(CMP_DIR, "index.html"), comparisonPageHtml());
 
 // Copy the hero diagrams used by the digital edition into dist/assets/edition/.
 const EDITION_ASSETS = join(DIST, "assets", "edition");
@@ -756,4 +1414,8 @@ for (const l of laws) {
   copiedImgs++;
 }
 
-console.log(`✓ Built ${laws.length} laws + ${refs.length} references -> dist/ (index + edition, ${copiedImgs} diagrams)`);
+console.log(`✓ Built ${laws.length} laws + ${refs.length} refs -> dist/`);
+console.log(`  · ${laws.length} per-law pages at /law/{slug}/`);
+console.log(`  · ${DATA.categories.length} category hubs at /category/{id}/`);
+console.log(`  · author page, comparison page, llms.txt, sitemap`);
+console.log(`  · ${copiedImgs} diagrams copied`);

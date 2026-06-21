@@ -7,6 +7,14 @@
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
+  // ---------- GA4 helper ----------
+  // No-op when gtag isn't loaded yet (Consent Mode / blockers). Safe to call.
+  const track = (name, params) => {
+    if (typeof window.gtag === "function") {
+      try { window.gtag("event", name, params || {}); } catch (_) {}
+    }
+  };
+
   const cards = $$(".card");
   const modal = $("#modal");
   if (!modal) return;
@@ -26,6 +34,7 @@
         c.style.display = show ? "" : "none";
       });
       updateCount();
+      track("category_filter", { category: id });
     });
   }
 
@@ -37,13 +46,21 @@
     countEl.textContent = n + (n === 1 ? " law" : " laws");
   }
 
-  // ---------- Sticky nav shadow + back-to-top ----------
+  // ---------- Sticky nav shadow + back-to-top + scroll_75 ----------
   const nav = $("#nav");
   const backtop = $("#backtop");
+  let fired75 = false;
   const onScroll = () => {
+    const doc = document.documentElement;
+    const max = (doc.scrollHeight - doc.clientHeight) || 1;
     const y = window.scrollY || window.pageYOffset || 0;
+    const pct = (y / max) * 100;
     if (nav) nav.classList.toggle("is-scrolled", y > 8);
     if (backtop) backtop.classList.toggle("is-on", y > 560);
+    if (!fired75 && pct >= 75) {
+      fired75 = true;
+      track("scroll_75", { page_path: location.pathname });
+    }
   };
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
@@ -51,6 +68,25 @@
     backtop.addEventListener("click", () =>
       window.scrollTo({ top: 0, behavior: "smooth" })
     );
+
+  // ---------- Newsletter signup tracking ----------
+  const signupForm = document.querySelector(".signup__form");
+  if (signupForm) {
+    signupForm.addEventListener("submit", () => {
+      track("newsletter_signup", { location: "home" });
+    });
+  }
+
+  // ---------- Source-click tracking (modal source link) ----------
+  const modalSource = $("#modal-source");
+  if (modalSource) {
+    modalSource.addEventListener("click", () => {
+      track("source_click", {
+        source_url: modalSource.href,
+        law_slug: location.hash || "",
+      });
+    });
+  }
 
   // ---------- Modal ----------
   function dataFromCard(card) {
@@ -105,6 +141,7 @@
     if (push && card.id && location.hash !== "#" + card.id) {
       history.pushState(null, "", "#" + card.id);
     }
+    track("law_open", { law_slug: card.id, category: card.dataset.category });
   }
 
   function closeModal(clearHash) {
