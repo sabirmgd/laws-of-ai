@@ -41,6 +41,13 @@ function assertUrl(name, value) {
   }
 }
 
+function displayPrice(value, currency = "USD") {
+  const raw = String(value || "").trim();
+  if (!raw) return raw;
+  if (/^[0-9]+(?:\.[0-9]+)?$/.test(raw) && currency === "USD") return `$${raw}`;
+  return raw;
+}
+
 const env = { ...process.env, ...parseEnvFile(LOCAL_ENV) };
 let source = readFileSync(DATA_FILE, "utf8");
 const data = JSON.parse(source);
@@ -79,7 +86,7 @@ function replaceObjectProperty(text, objectName, key, value) {
   const after = text.slice(range.end);
   const re = new RegExp(`("${key}"\\s*:\\s*)"[^"]*"`);
   if (!re.test(block)) throw new Error(`Missing ${objectName}.${key}`);
-  block = block.replace(re, `$1${jsonString(value)}`);
+  block = block.replace(re, (_match, prefix) => `${prefix}${jsonString(value)}`);
   return `${before}${block}${after}`;
 }
 
@@ -122,7 +129,7 @@ if (first(env.PRODUCT_CHECKOUT_PROVIDER, env.CHECKOUT_PROVIDER)) {
 }
 
 if (first(env.PRODUCT_PRICE)) {
-  updates.push((text) => replaceObjectProperty(text, "product", "price", first(env.PRODUCT_PRICE)));
+  updates.push((text) => replaceObjectProperty(text, "product", "price", displayPrice(first(env.PRODUCT_PRICE), first(env.PRODUCT_CURRENCY, data.site.product.currency))));
   changed.push("site.product.price");
 }
 

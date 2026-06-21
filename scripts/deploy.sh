@@ -254,13 +254,20 @@ fi
 
 echo "==> Upserting Cloudflare CNAME laws -> ghs.googlehosted.com (DNS only)"
 CF_API="https://api.cloudflare.com/client/v4"
-ZONE_ID=$(curl -s "$CF_API/zones?name=$CF_ZONE" \
+ZONE_JSON=$(curl -s "$CF_API/zones?name=$CF_ZONE" \
   -H "X-Auth-Email: $CF_API_EMAIL" -H "X-Auth-Key: $CF_API_KEY" \
-  -H "Content-Type: application/json" | python3 -c "import sys,json;print(json.load(sys.stdin)['result'][0]['id'])")
+  -H "Content-Type: application/json")
+ZONE_ID=$(printf '%s' "$ZONE_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); r=d.get('result') or []; print(r[0].get('id','') if r else '')")
+if [[ -z "$ZONE_ID" ]]; then
+  echo "!! Cloudflare zone lookup failed — skipping DNS step."
+  echo "   Cloud Run is already deployed. Check the existing CNAME 'laws' -> ghs.googlehosted.com if the custom domain stops resolving."
+  exit 0
+fi
 
-REC_ID=$(curl -s "$CF_API/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
+REC_JSON=$(curl -s "$CF_API/zones/$ZONE_ID/dns_records?name=$DOMAIN" \
   -H "X-Auth-Email: $CF_API_EMAIL" -H "X-Auth-Key: $CF_API_KEY" \
-  -H "Content-Type: application/json" | python3 -c "import sys,json;r=json.load(sys.stdin)['result'];print(r[0]['id'] if r else '')")
+  -H "Content-Type: application/json")
+REC_ID=$(printf '%s' "$REC_JSON" | python3 -c "import sys,json; d=json.load(sys.stdin); r=d.get('result') or []; print(r[0].get('id','') if r else '')")
 
 BODY='{"type":"CNAME","name":"'$DOMAIN'","content":"ghs.googlehosted.com","ttl":1,"proxied":false}'
 if [[ -n "$REC_ID" ]]; then
