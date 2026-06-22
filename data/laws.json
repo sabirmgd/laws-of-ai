@@ -22,7 +22,7 @@
       "currency": "USD",
       "checkoutProvider": "PayPal",
       "checkoutUrl": "",
-      "summary": "A field-tested bundle for builders who want AI agents that produce real results: installable audit skill, 50-law rubric, templates, examples, sample audit, and protected access to the illustrated digital edition.",
+      "summary": "An evidence-based audit workflow for real AI agents: use it in code repos, n8n/workflow exports, SDK/API projects, black-box transcript reviews, or client reports to find concrete failure modes and fixes.",
       "promise": "Audit your agent like a serious system before users, clients, or production traffic expose the weak points.",
       "note": "Direct PayPal checkout is handled server-side through the Orders API."
     },

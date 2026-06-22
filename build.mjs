@@ -1385,14 +1385,15 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
   const story = [
     "I made this because I kept seeing the same pattern while building and reviewing agent systems: the model was rarely the only problem. The real failures came from stale context, vague tools, weak retrieval, missing evals, unsafe permissions, and handoffs nobody had designed.",
     "Agents matter because they are becoming an interface to real work. They read, decide, call tools, write to systems, and influence customers. A demo can look impressive while the system underneath is still fragile.",
-    "This bundle turns the online 50 Laws of AI Agents edition into a working audit process. You can point it at an agent you are building, find what is likely to break, and get concrete fixes that move the agent closer to producing real results."
+    "This bundle turns the online 50 Laws of AI Agents edition into a working audit process. It is not a magic scanner. It reviews evidence from where the agent actually lives: code, workflow exports, prompts, tools, traces, evals, screenshots, or transcripts."
   ];
   const included = [
     "Installable ai-agent-audit skill",
     "Codex/Claude-ready skill folder",
     "Full 50-law audit rubric",
-    "Extra worked examples",
+    "Repo, workflow, SDK/API, black-box, and client-report audit modes",
     "Agent audit intake checklist",
+    "Platform-specific evidence checklist",
     "Audit report template",
     "Copy-paste audit prompt for non-Codex/Claude users",
     "Sample audit of a broken agent",
@@ -1406,6 +1407,13 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
     "Eval blind spots, aggregate metrics, and regression gaps",
     "Prompt injection, exfiltration, and unsafe autonomy",
   ];
+  const workSurfaces = [
+    "Code repos in Codex or Claude Code",
+    "n8n, Zapier, Make, Retool, Voiceflow, and Botpress exports",
+    "OpenAI Agents SDK, Assistants, LangGraph, LangChain, CrewAI, AutoGen, Semantic Kernel, and custom API stacks",
+    "Black-box transcript or screenshot reviews when internals are unavailable",
+    "Client-ready consulting or launch-readiness reports",
+  ];
   const outcomes = [
     "A clearer map of where your agent is strong, fragile, or over-scoped",
     "A prioritized issue list tied to specific laws and concrete evidence",
@@ -1413,8 +1421,9 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
     "Verification steps so you can prove the fix worked instead of trusting vibes",
   ];
   const steps = [
-    "Paste the agent goal, system prompt, tool list, retrieval setup, evals, and one or two traces.",
-    "Run the included skill, or use the copy-paste prompt if your tool does not support skills.",
+    "Choose the audit mode: repo, workflow, SDK/API, black-box, or client report.",
+    "Paste or point to the agent goal, system prompt, tool list, workflow export, retrieval setup, evals, and one or two traces.",
+    "Run the included skill where you work, or use the copy-paste prompt if your tool does not support skills.",
     "Review the ranked findings and choose the top 3 fixes that reduce the most risk.",
     "Use the report template to turn the audit into an implementation plan or client deliverable.",
   ];
@@ -1487,7 +1496,7 @@ ${navHtml("product")}
       <div class="product__panel">
         <p class="lw__lbl lw__lbl--ac">What it does</p>
         <h2>Turns the 50 laws into a repeatable audit for real AI agents.</h2>
-        <p>Use the included skill or copy-paste prompt to inspect an agent's prompts, tools, retrieval, evals, traces, security boundaries, and human handoffs. The output is a prioritized issue list with evidence, fixes, and verification steps.</p>
+        <p>Use the included skill or copy-paste prompt to inspect an agent's prompts, tools, workflow nodes, retrieval, evals, traces, security boundaries, and human handoffs. The output is a prioritized issue list with evidence, fixes, and verification steps.</p>
       </div>
       <div class="product__panel product__panel--metric">
         <span class="product__price">${esc(PRODUCT.price || "$14.90")}</span>
@@ -1510,10 +1519,23 @@ ${included.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
         </ul>
       </div>
       <div>
+        <p class="lw__lbl">Works with</p>
+        <ul class="lw__ul">
+${workSurfaces.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
+        </ul>
+      </div>
+    </section>
+
+    <section class="product__grid" aria-label="Audit coverage">
+      <div>
         <p class="lw__lbl">Checks for</p>
         <ul class="lw__ul">
 ${checks.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
         </ul>
+      </div>
+      <div>
+        <p class="lw__lbl">Not a black box promise</p>
+        <p>With code, workflow exports, traces, and evals, the audit can be specific and high-confidence. With screenshots or transcripts only, it still helps, but it marks findings as observed risks or hypotheses instead of pretending to know the internals.</p>
       </div>
     </section>
 

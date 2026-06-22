@@ -3,6 +3,7 @@
 ## Executive Summary
 
 - Overall risk:
+- Audit mode:
 - Highest-risk failure mode:
 - Fastest useful fix:
 - Confidence:
@@ -10,6 +11,10 @@
 ## System Map
 
 Describe the agent workflow: inputs, context assembly, model calls, tools, memory, side effects, evals, and human handoffs.
+
+## Evidence Reviewed
+
+-
 
 ## Findings
 
@@ -29,6 +34,8 @@ Verification:
 
 Owner:
 
+Confidence:
+
 ## What Looks Solid
 
 -
@@ -36,6 +43,10 @@ Owner:
 ## Unknowns / Needed Evidence
 
 -
+
+## Black-Box Limits
+
+Use this section only when internals were unavailable. State what could not be inspected and which findings are hypotheses.
 
 ## 7-Day Fix Plan
 

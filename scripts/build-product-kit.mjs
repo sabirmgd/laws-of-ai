@@ -103,6 +103,20 @@ Price: ${siteProduct.price || "$14.90"}
 
 Promise: ${siteProduct.promise || "Find the hidden failure modes in your AI agent before users do."}
 
+## What This Actually Is
+
+This is an evidence-based audit workflow for real AI agents. It is not a black-box vulnerability scanner and it is not a generic prompt pack.
+
+You use it inside the tool where you already work, or you export evidence from that tool:
+
+- Code repos through Codex or Claude Code.
+- n8n, Zapier, Make, Retool, Voiceflow, Botpress, or similar workflow exports.
+- OpenAI Agents SDK, Assistants, LangGraph, LangChain, CrewAI, AutoGen, Semantic Kernel, or custom API projects.
+- Black-box transcripts, screenshots, demos, and probe results when internals are unavailable.
+- Client-ready reports for consulting or launch reviews.
+
+The kit reads prompts, tools, retrieval, evals, traces, workflow nodes, permissions, side effects, and handoffs, then maps concrete risks to the 50 Laws.
+
 ## Why This Exists
 
 I made this after building and reviewing many AI agent systems and seeing the same failures repeat. The model was rarely the only problem. The agent broke because context was stale, tools were vague, retrieval missed the right facts, evals were missing, permissions were too broad, or nobody designed the handoff when the agent got stuck.
@@ -114,6 +128,7 @@ Agents are becoming an interface to real work. They read, decide, call tools, wr
 - \`ai-agent-audit/\`: installable skill folder.
 - \`ai-agent-audit/references/50-laws-audit-rubric.md\`: full audit rubric generated from the current law data.
 - \`ai-agent-audit/assets/intake-checklist.md\`: gather the right audit inputs.
+- \`ai-agent-audit/assets/platform-intake.md\`: evidence checklist for repos, workflow builders, SDK/API agents, black-box audits, and client reports.
 - \`ai-agent-audit/assets/audit-report-template.md\`: reusable report format.
 - \`ai-agent-audit/assets/copy-paste-audit-prompt.md\`: use the workflow without installing a skill.
 - \`ai-agent-audit/assets/sample-audit.md\`: example audit output.
@@ -126,9 +141,10 @@ https://laws.deleg8.dev/access
 ## How To Use
 
 1. Follow \`ai-agent-audit/assets/install-codex-claude.md\` to copy the skill into Codex or Claude.
-2. Fill in \`assets/intake-checklist.md\` with your agent design, prompts, tools, retrieval, evals, and traces.
-3. Ask the agent to run an audit with \`$ai-agent-audit\`.
-4. Use \`assets/audit-report-template.md\` to turn findings into a fix plan.
+2. Choose a mode: repo, workflow, SDK/API, black-box, or client report.
+3. Fill in \`assets/intake-checklist.md\` or \`assets/platform-intake.md\` with your prompts, tools, workflow export, retrieval, evals, traces, screenshots, or transcripts.
+4. Ask the agent to run an audit with \`$ai-agent-audit\`.
+5. Use \`assets/audit-report-template.md\` to turn findings into a fix plan.
 
 If your tool does not support installable skills, use \`assets/copy-paste-audit-prompt.md\`.
 `;

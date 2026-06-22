@@ -1,4 +1,4 @@
 interface:
   display_name: "AI Agent Audit"
-  short_description: "Audit AI agents against the 50 Laws of AI Agents."
-  default_prompt: "Audit my AI agent design against the 50 Laws of AI Agents and return prioritized issues with fixes."
+  short_description: "Audit real AI agents, workflow exports, repos, prompts, tools, retrieval, evals, and traces against the 50 Laws."
+  default_prompt: "Audit my AI agent where it lives. Choose the right mode, inspect the evidence I provide, and return prioritized findings with fixes and verification steps."

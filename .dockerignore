@@ -8,7 +8,7 @@ node_modules
 .env.*
 *.local
 .local/
-product/ai-agent-audit-kit/build/
+.omx/
 product/ai-agent-audit-kit/releases/
-*.md
+README.md
 .DS_Store

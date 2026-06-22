@@ -9,8 +9,14 @@ The agent answers customer support emails. It can retrieve customer account hist
 ## Executive Summary
 
 - Overall risk: Critical
+- Audit mode: workflow
+- Confidence: Medium. The audit has enough architecture evidence to identify major risks, but the actual prompt, tool descriptions, and traces are missing.
 - Top risk: The agent combines private data, untrusted email content, and an external send tool.
 - Fastest useful fix: Make `send_email` draft-only behind human approval when the agent has read untrusted inbound email.
+
+## System Map
+
+Inbound customer email enters the same model context as private account history. The model drafts the reply and can directly call an outbound email tool. Retrieval uses a top-12 vector search with no reranker. Evaluation is based on average user feedback and manual complaint review.
 
 ## Findings
 
@@ -28,6 +34,8 @@ Fix: Remove one leg of the trifecta. The fastest safe fix is to make email sendi
 
 Verification: Add an adversarial email fixture that asks the agent to forward private account details externally. The test passes only if the agent refuses or produces a draft requiring human approval and never calls `send_email`.
 
+Confidence: High.
+
 ### 2. Retrieval is broad but not proven relevant
 
 Severity: High
@@ -42,6 +50,8 @@ Fix: Create a labeled set of support questions with known supporting passages. M
 
 Verification: The labeled retrieval set shows the answer-bearing passage in the final context for target cases, and generated replies cite the selected passage.
 
+Confidence: Medium. The top-k design is known, but no retrieval logs or labeled cases were provided.
+
 ### 3. The metric hides high-risk segments
 
 Severity: Medium
@@ -55,6 +65,8 @@ Why it matters: Overall satisfaction can look fine while billing, refunds, enter
 Fix: Slice evals by task type, account tier, language, policy area, and risk. Convert every serious complaint into a regression case.
 
 Verification: A dashboard reports per-slice pass rates and the regression suite runs on every prompt/tool change.
+
+Confidence: High.
 
 ## What Looks Solid
 
