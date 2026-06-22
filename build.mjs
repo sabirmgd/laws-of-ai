@@ -60,8 +60,12 @@ const productPath = () => `/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
 const sandboxProductUrl = () => `${SITE.url}/sandbox/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
 const sandboxProductPath = () => `/sandbox/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
 const editionEntryPath = () => freeEditionEnabled() ? "/edition.html" : "/access";
-const checkoutHref = () => PRODUCT.checkoutUrl || "#paypal-checkout";
-const checkoutLabel = () => `Get the kit — ${PRODUCT.price || "$14.90"}`;
+const productIsFree = () => PRODUCT.free === true || /^free\b/i.test(String(PRODUCT.price || "")) || flag("PRODUCT_FREE_ENABLED", false);
+const checkoutHref = () => productIsFree() ? "/kit/START-HERE.md" : (PRODUCT.checkoutUrl || "#paypal-checkout");
+const checkoutLabel = () => productIsFree() ? "Open the free kit" : `Get the kit — ${PRODUCT.price || "$14.90"}`;
+const productPriceLabel = () => productIsFree() ? "Free" : (PRODUCT.price || "$14.90");
+const productPriceSub = () => productIsFree() ? "Public during launch" : "skill + protected edition";
+const productProviderLabel = () => productIsFree() ? "No checkout required" : `Checkout via ${PRODUCT.checkoutProvider || "PayPal"}`;
 
 // ---------- category icons (line, currentColor) ----------
 const ICON_PATHS = {
@@ -520,6 +524,35 @@ ${resources.map(([label, href, note]) => `      <a href="${href}"><span>${esc(la
 `;
 }
 
+function kitResourceLinks() {
+  return [
+    ["Download zip", "/kit.zip", "Download the full skill bundle."],
+    ["Start here", "/kit/START-HERE.md", "What the kit is and how to use it."],
+    ["Skill prompt", "/kit/ai-agent-audit/SKILL.md", "The installable ai-agent-audit skill."],
+    ["Full rubric", "/kit/ai-agent-audit/references/50-laws-audit-rubric.md", "All 50 laws as an audit rubric."],
+    ["Platform intake", "/kit/ai-agent-audit/assets/platform-intake.md", "Repo, workflow, SDK/API, black-box, and client-report inputs."],
+    ["Install guide", "/kit/ai-agent-audit/assets/install-codex-claude.md", "Install in Codex or Claude."],
+    ["Copy-paste prompt", "/kit/ai-agent-audit/assets/copy-paste-audit-prompt.md", "Use it without installable skill support."],
+    ["Sample audit", "/kit/ai-agent-audit/assets/sample-audit.md", "Example output for a flawed support agent."],
+    ["Intake checklist", "/kit/ai-agent-audit/assets/intake-checklist.md", "Gather prompts, tools, traces, and evals."],
+    ["Report template", "/kit/ai-agent-audit/assets/audit-report-template.md", "Turn findings into a fix plan."],
+  ];
+}
+
+function publicKitResourcesHtml() {
+  return `    <section class="buyer product__resources" aria-label="Free audit skill files">
+      <div>
+        <p class="buyer__eyebrow">Free during launch</p>
+        <h2>Use the skill files now.</h2>
+        <p>The audit kit is public while we decide what should become paid. Install the skill, download the bundle, or use the copy-paste prompt where your agent already lives.</p>
+      </div>
+      <nav class="buyer__links" aria-label="Free audit kit files">
+${kitResourceLinks().map(([label, href, note]) => `        <a href="${href}"><span>${esc(label)}</span><small>${esc(note)}</small></a>`).join("\n")}
+      </nav>
+    </section>
+`;
+}
+
 function editionHtml({ buyerResources = false } = {}) {
   const canonical = SITE.url + "/edition.html";
   return `<!DOCTYPE html>
@@ -684,10 +717,10 @@ ${backTopHtml}
 function editionPromoHtml() {
   return `  <section class="promo" aria-label="Digital edition">
     <div class="promo__in">
-      <p class="promo__eyebrow">${productEnabled() ? "Protected Buyer Edition" : "The Expanded Digital Edition"}</p>
+      <p class="promo__eyebrow">${productEnabled() && !productIsFree() ? "Protected Buyer Edition" : "The Expanded Digital Edition"}</p>
       <h2 class="promo__title">Every law, in full — with a diagram for each.</h2>
-      <p class="promo__sub">The mechanism underneath, the warning signs, a worked example, an apply-it recipe, and the sources. ${laws.length} laws, expandable in one place${productEnabled() ? " for paid buyers" : ""}.</p>
-      <a class="promo__btn" href="${editionEntryPath()}">${productEnabled() ? "Unlock the digital edition" : "Open the digital edition"} ${arrow}</a>
+      <p class="promo__sub">The mechanism underneath, the warning signs, a worked example, an apply-it recipe, and the sources. ${laws.length} laws, expandable in one place${productEnabled() && !productIsFree() ? " for paid buyers" : ""}.</p>
+      <a class="promo__btn" href="${editionEntryPath()}">${productEnabled() && !productIsFree() ? "Unlock the digital edition" : "Open the digital edition"} ${arrow}</a>
     </div>
   </section>`;
 }
@@ -695,9 +728,9 @@ function editionPromoHtml() {
 function productPromoHtml() {
   return `  <section class="promo promo--product" aria-label="${esc(PRODUCT.shortName || PRODUCT.name)}">
     <div class="promo__in">
-      <p class="promo__eyebrow">Paid kit · ${esc(PRODUCT.price || "$14.90")}</p>
+      <p class="promo__eyebrow">${productIsFree() ? "Free kit" : "Paid kit"} · ${esc(productPriceLabel())}</p>
       <h2 class="promo__title">${esc(PRODUCT.name)}</h2>
-      <p class="promo__sub">I built this after building and reviewing real agents. Use the protected 50-law edition plus the installable audit skill to inspect prompts, tools, retrieval, evals, security, and handoffs.</p>
+      <p class="promo__sub">I built this after building and reviewing real agents. Use the installable audit skill and rubric to inspect prompts, tools, retrieval, evals, security, and handoffs.</p>
       <a class="promo__btn" href="${productPath()}">See what is inside ${arrow}</a>
     </div>
   </section>`;
@@ -1359,7 +1392,7 @@ ${backTopHtml}
 
 // ---------- product page ----------
 function productJsonLd(url = productUrl()) {
-  const price = String(PRODUCT.price || "$14.90").replace(/[^0-9.]/g, "") || "14.90";
+  const price = productIsFree() ? "0" : (String(PRODUCT.price || "$14.90").replace(/[^0-9.]/g, "") || "14.90");
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "Product",
@@ -1380,7 +1413,7 @@ function productJsonLd(url = productUrl()) {
 }
 
 function productPageHtml({ url = productUrl(), noindex = false, testPage = false } = {}) {
-  const title = `${PRODUCT.name} — ${PRODUCT.price || "$14.90"}`;
+  const title = `${PRODUCT.name} — ${productPriceLabel()}`;
   const description = PRODUCT.summary || "A practical self-audit kit for finding issues in AI agents.";
   const story = [
     "I made this because I kept seeing the same pattern while building and reviewing agent systems: the model was rarely the only problem. The real failures came from stale context, vague tools, weak retrieval, missing evals, unsafe permissions, and handoffs nobody had designed.",
@@ -1398,7 +1431,7 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
     "Copy-paste audit prompt for non-Codex/Claude users",
     "Sample audit of a broken agent",
     "Codex/Claude install instructions",
-    "Protected access to the illustrated online digital edition",
+    "Free public links to every skill file during launch",
   ];
   const checks = [
     "Context, stale data, and long-context failure modes",
@@ -1427,7 +1460,7 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
     "Review the ranked findings and choose the top 3 fixes that reduce the most risk.",
     "Use the report template to turn the audit into an implementation plan or client deliverable.",
   ];
-  const checkoutSetup = PRODUCT.checkoutUrl
+  const checkoutSetup = productIsFree() || PRODUCT.checkoutUrl
     ? ""
     : `<div class="product__setup product__checkout" id="paypal-checkout">
         <p class="lw__lbl lw__lbl--ac">Secure checkout</p>
@@ -1480,12 +1513,13 @@ ${navHtml("product")}
 
   <article class="law__page product__page" id="main">
     <header class="law__hero product__hero">
-      <p class="law__eyebrow">Paid kit · ${esc(PRODUCT.price || "$14.90")}</p>
+      <p class="law__eyebrow">${productIsFree() ? "Free kit" : "Paid kit"} · ${esc(productPriceLabel())}</p>
       <h1 class="law__title">${esc(PRODUCT.name)}</h1>
       <p class="law__sub">${esc(PRODUCT.promise || "Find hidden AI agent failure modes before users do.")}</p>
       <p class="product__lede">${esc(description)}</p>
       <div class="product__actions">
         <a class="law__cta product__buy" href="${checkoutHref()}" ${PRODUCT.checkoutUrl ? `target="_blank" rel="noopener"` : ""} data-track="product_checkout_click" data-product="${esc(PRODUCT.slug || "ai-agent-audit-kit")}">${checkoutLabel()} ${arrow}</a>
+        ${productIsFree() ? `<a class="law__cta law__cta--ghost" href="/kit.zip">Download zip</a>` : ""}
         <a class="law__cta law__cta--ghost" href="${SITE.newsletter?.action ? "/#subscribe" : "/"}">Start with the free course</a>
       </div>
       ${testPage ? `<p class="product__test-note">Hidden sandbox checkout page. This is not linked from the public site and is marked noindex.</p>` : ""}
@@ -1499,11 +1533,13 @@ ${navHtml("product")}
         <p>Use the included skill or copy-paste prompt to inspect an agent's prompts, tools, workflow nodes, retrieval, evals, traces, security boundaries, and human handoffs. The output is a prioritized issue list with evidence, fixes, and verification steps.</p>
       </div>
       <div class="product__panel product__panel--metric">
-        <span class="product__price">${esc(PRODUCT.price || "$14.90")}</span>
-        <span class="product__price-sub">skill + protected edition</span>
-        <span class="product__provider">Checkout via ${esc(PRODUCT.checkoutProvider || "PayPal")}</span>
+        <span class="product__price">${esc(productPriceLabel())}</span>
+        <span class="product__price-sub">${esc(productPriceSub())}</span>
+        <span class="product__provider">${esc(productProviderLabel())}</span>
       </div>
     </section>
+
+${publicKitResourcesHtml()}
 
     <section class="product__story" aria-label="Why this kit exists">
       <p class="lw__lbl lw__lbl--ac">Why I made this</p>
@@ -1562,12 +1598,12 @@ ${steps.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
       <h2 class="lw__lbl">Who this is for</h2>
       <p>AI engineers, founders, agencies, and indie builders who are already shipping or prototyping agent workflows and want a practical way to find reliability and safety problems before production traffic does.</p>
       <h2 class="lw__lbl">What this is not</h2>
-      <p>It is not a generic prompt pack, ebook, or PDF download. It is a structured audit workflow backed by protected access to the online 50 Laws of AI Agents edition, plus the skill files and templates needed to turn the output into an actionable report.</p>
+      <p>It is not a generic prompt pack, ebook, or PDF download. It is a structured audit workflow backed by the 50 Laws of AI Agents, plus the skill files and templates needed to turn the output into an actionable report.</p>
     </section>
 
     <section class="law__more">
       <a class="law__cta product__buy" href="${checkoutHref()}" ${PRODUCT.checkoutUrl ? `target="_blank" rel="noopener"` : ""} data-track="product_checkout_click" data-product="${esc(PRODUCT.slug || "ai-agent-audit-kit")}">${checkoutLabel()} ${arrow}</a>
-      <a class="law__cta law__cta--ghost" href="/access">Access the digital edition</a>
+      ${productIsFree() ? `<a class="law__cta law__cta--ghost" href="/kit.zip">Download zip</a>` : `<a class="law__cta law__cta--ghost" href="/access">Access the digital edition</a>`}
     </section>
   </article>
 
@@ -1579,17 +1615,19 @@ ${backTopHtml}
     (function(){
       var nav=document.getElementById('nav'),bt=document.getElementById('backtop');
       function track(n,p){if(window.gtag){try{window.gtag('event',n,p||{});}catch(_){}}}
+${productIsFree() ? "" : `
       function status(msg,isError){var el=document.getElementById('paypal-checkout-status');if(el){el.textContent=msg||'';el.classList.toggle('is-error',!!isError);}}
       function json(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json().then(function(data){if(!r.ok){var e=new Error(data.message||data.error||'Request failed');e.code=data.error||'';throw e;}return data;});});}
       function loadPayPalSdk(cfg){return new Promise(function(resolve,reject){if(window.paypal){resolve();return;}var s=document.createElement('script');s.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency='+encodeURIComponent(cfg.currency||'USD')+'&intent=capture';s.onload=resolve;s.onerror=function(){reject(new Error('PayPal checkout could not load'));};document.head.appendChild(s);});}
       function initPayPal(){var container=document.getElementById('paypal-button-container'),email=document.getElementById('buyer-email');if(!container||!email)return;fetch('/api/paypal/config',{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(cfg){if(!cfg.configured){status('PayPal checkout is not configured yet.',true);return;}if(cfg.mode==='sandbox'){status('Sandbox checkout active. Use a PayPal sandbox buyer account for testing.',true);}return loadPayPalSdk(cfg).then(function(){window.paypal.Buttons({style:{layout:'vertical',shape:'rect',label:'pay'},onClick:function(_,actions){if(!email.checkValidity()){email.reportValidity();status('Enter the email you want to use for access.',true);return actions.reject();}status('Opening PayPal checkout...');return actions.resolve();},createOrder:function(){return json('/api/paypal/create-order',{email:email.value}).then(function(order){track('product_checkout_start',{product:'ai-agent-audit-kit',provider:'paypal'});return order.id;});},onApprove:function(data,actions){status('Capturing payment...');return json('/api/paypal/capture-order',{orderID:data.orderID,email:email.value}).then(function(result){track('product_checkout_paid',{product:'ai-agent-audit-kit',provider:'paypal'});window.location.href=result.accessUrl||'/paid/edition.html';}).catch(function(err){if(err.code==='INSTRUMENT_DECLINED'&&actions&&actions.restart){status('Sandbox payment method was declined. Choose another buyer account or test card.',true);return actions.restart();}throw err;});},onCancel:function(){status('Checkout canceled.');},onError:function(err){console.error(err);status(err&&err.message?err.message:'PayPal checkout failed. Try again or refresh the page.',true);}}).render('#paypal-button-container');});}).catch(function(err){console.error(err);status('PayPal checkout is unavailable right now.',true);});}
+`}
       function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
       window.addEventListener('scroll',s,{passive:true});s();
       if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
       document.querySelectorAll('[data-track="product_checkout_click"]').forEach(function(a){
         a.addEventListener('click',function(){track('product_checkout_click',{product:a.dataset.product||'ai-agent-audit-kit',checkout_configured:true,provider:'paypal'});});
       });
-      ${PRODUCT.checkoutUrl ? "" : "initPayPal();"}
+      ${productIsFree() || PRODUCT.checkoutUrl ? "" : "initPayPal();"}
     })();
   </script>
 </body>
@@ -1644,6 +1682,7 @@ function lawCss() {
 .product__checkout-status{min-height:20px;margin-top:8px;font-family:var(--mono);font-size:12px;color:var(--faint)}
 .product__checkout-status.is-error{color:#ffb4a8}
 .product__proof{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,240px);gap:14px;margin-top:28px}
+.product__resources{margin-top:28px}
 .product__panel{border:1px solid var(--border);border-radius:16px;background:var(--card);padding:20px}
 .product__panel h2{font-family:var(--serif);font-weight:500;font-size:24px;letter-spacing:-.01em;line-height:1.12;margin-bottom:10px}
 .product__panel p{color:var(--dim)}

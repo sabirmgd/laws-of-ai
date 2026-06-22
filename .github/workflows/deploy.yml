@@ -29,9 +29,9 @@ jobs:
 
       - name: Build static assets
         env:
-          PRODUCT_PUBLIC_ENABLED: "false"
+          PRODUCT_PUBLIC_ENABLED: "true"
           FREE_EDITION_ENABLED: "true"
-          PAYMENT_TEST_ENABLED: "true"
+          PAYMENT_TEST_ENABLED: "false"
         run: |
           bash scripts/build-all.sh
 
@@ -48,7 +48,7 @@ jobs:
             --allow-unauthenticated \
             --cpu 1 \
             --memory 256Mi \
-            --update-env-vars PRODUCT_PUBLIC_ENABLED=false,FREE_EDITION_ENABLED=true,PAYMENT_TEST_ENABLED=true \
+            --update-env-vars PRODUCT_PUBLIC_ENABLED=true,FREE_EDITION_ENABLED=true,PAYMENT_TEST_ENABLED=false \
             --quiet
 
       - name: Show URL

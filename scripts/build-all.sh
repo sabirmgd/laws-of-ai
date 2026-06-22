@@ -19,15 +19,16 @@ if [[ -f ".env.local" ]]; then
     value="${value#\'}"
     case "$key" in
       PRODUCT_PUBLIC_ENABLED|FREE_EDITION_ENABLED|PAYMENT_TEST_ENABLED|PRODUCT_PRICE|PRODUCT_CURRENCY)
+        [[ -n "${!key:-}" ]] && continue
         export "$key=$value"
         ;;
     esac
   done < ".env.local"
 fi
 
-: "${PRODUCT_PUBLIC_ENABLED:=false}"
+: "${PRODUCT_PUBLIC_ENABLED:=true}"
 : "${FREE_EDITION_ENABLED:=true}"
-: "${PAYMENT_TEST_ENABLED:=true}"
+: "${PAYMENT_TEST_ENABLED:=false}"
 export PRODUCT_PUBLIC_ENABLED FREE_EDITION_ENABLED PAYMENT_TEST_ENABLED
 
 node build.mjs

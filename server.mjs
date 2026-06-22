@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const DIST = join(ROOT, "dist");
 const PRODUCT_BUNDLE_ROOT = join(ROOT, "product", "ai-agent-audit-kit", "build", "ai-agent-audit-kit-50-laws-edition");
+const PRODUCT_RELEASE_ZIP = join(ROOT, "product", "ai-agent-audit-kit", "releases", "ai-agent-audit-kit-50-laws-edition.zip");
 
 function loadLocalEnv() {
   const envPath = join(ROOT, ".env.local");
@@ -72,6 +73,7 @@ const MIME = {
   ".md": "text/markdown; charset=utf-8",
   ".yaml": "text/yaml; charset=utf-8",
   ".yml": "text/yaml; charset=utf-8",
+  ".zip": "application/zip",
   ".svg": "image/svg+xml",
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -869,6 +871,33 @@ function protectedObjectPath(pathname) {
   return objectPath;
 }
 
+function publicKitObjectPath(pathname) {
+  let objectPath = pathname.replace(/^\/kit\/?/, "");
+  if (!objectPath || objectPath === "/") objectPath = "START-HERE.md";
+  objectPath = objectPath.replace(/^\/+/, "");
+  if (objectPath.endsWith("/")) objectPath += "START-HERE.md";
+  if (!objectPath || objectPath.includes("..")) return null;
+  return objectPath;
+}
+
+function publicKitFilePath(objectPath) {
+  const normalizedObject = normalize(objectPath).replace(/^(\.\.[/\\])+/, "");
+  const filePath = join(PRODUCT_BUNDLE_ROOT, normalizedObject);
+  if (!filePath.startsWith(PRODUCT_BUNDLE_ROOT)) return null;
+  return filePath;
+}
+
+function serveFilePath(req, res, filePath, { privateCache = false } = {}) {
+  const ext = extname(filePath);
+  const headers = {
+    "Content-Type": MIME[ext] || "application/octet-stream",
+    "Cache-Control": privateCache ? "private, no-store" : "public, max-age=300",
+  };
+  res.writeHead(200, headers);
+  if (req.method === "HEAD") res.end();
+  else createReadStream(filePath).pipe(res);
+}
+
 function localProtectedFilePath(objectPath) {
   const normalizedObject = normalize(objectPath).replace(/^(\.\.[/\\])+/, "");
   const base = normalizedObject.startsWith("kit/")
@@ -950,9 +979,31 @@ async function serveProtectedFile(req, res) {
     send(res, 200, html, headers);
     return;
   }
-  res.writeHead(200, headers);
-  if (req.method === "HEAD") res.end();
-  else createReadStream(localPath).pipe(res);
+  serveFilePath(req, res, localPath, { privateCache: true });
+}
+
+function servePublicKit(req, res) {
+  const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+  if (url.pathname === "/kit.zip") {
+    if (!existsSync(PRODUCT_RELEASE_ZIP)) {
+      send(res, 404, "Not Found", { "Content-Type": "text/plain; charset=utf-8" });
+      return;
+    }
+    serveFilePath(req, res, PRODUCT_RELEASE_ZIP);
+    return;
+  }
+
+  const objectPath = publicKitObjectPath(url.pathname);
+  if (!objectPath) {
+    send(res, 404, "Not Found", { "Content-Type": "text/plain; charset=utf-8" });
+    return;
+  }
+  const filePath = publicKitFilePath(objectPath);
+  if (!filePath || !existsSync(filePath) || !statSync(filePath).isFile()) {
+    send(res, 404, "Not Found", { "Content-Type": "text/plain; charset=utf-8" });
+    return;
+  }
+  serveFilePath(req, res, filePath);
 }
 
 async function handlePaid(req, res) {
@@ -1061,6 +1112,15 @@ createServer(async (req, res) => {
         return;
       }
       await handlePaid(req, res);
+      return;
+    }
+
+    if (url.pathname === "/kit.zip" || url.pathname === "/kit" || url.pathname.startsWith("/kit/")) {
+      if (!["GET", "HEAD"].includes(req.method || "")) {
+        send(res, 405, "Method Not Allowed", { Allow: "GET, HEAD", "Content-Type": "text/plain; charset=utf-8" });
+        return;
+      }
+      servePublicKit(req, res);
       return;
     }
 

@@ -18,13 +18,13 @@
       "slug": "ai-agent-audit-kit",
       "name": "AI Agent Audit Kit: 50 Laws Edition",
       "shortName": "AI Agent Audit Kit",
-      "price": "$14.90",
+      "price": "Free for now",
       "currency": "USD",
-      "checkoutProvider": "PayPal",
+      "checkoutProvider": "Free access",
       "checkoutUrl": "",
       "summary": "An evidence-based audit workflow for real AI agents: use it in code repos, n8n/workflow exports, SDK/API projects, black-box transcript reviews, or client reports to find concrete failure modes and fixes.",
-      "promise": "Audit your agent like a serious system before users, clients, or production traffic expose the weak points.",
-      "note": "Direct PayPal checkout is handled server-side through the Orders API."
+      "promise": "Use the audit skill free while we decide what should stay free and what should become paid.",
+      "note": "The audit skill files are public during the launch period."
     },
     "newsletter": {
       "action": "/api/newsletter",
