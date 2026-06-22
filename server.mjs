@@ -30,6 +30,14 @@ function loadLocalEnv() {
 
 loadLocalEnv();
 
+function flag(name, fallback = false) {
+  const value = process.env[name];
+  if (value === undefined || value === "") return fallback;
+  if (/^(1|true|yes|on)$/i.test(value)) return true;
+  if (/^(0|false|no|off)$/i.test(value)) return false;
+  return fallback;
+}
+
 const PORT = Number(process.env.PORT || 8080);
 const SITE_URL = process.env.SITE_URL || "https://laws.deleg8.dev/";
 const PROJECT_ID = process.env.FIRESTORE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || "deleg8-dev";
@@ -49,6 +57,9 @@ const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || "";
 const PRODUCT_NAME = process.env.PRODUCT_NAME || "AI Agent Audit Kit: 50 Laws Edition";
 const PRODUCT_CURRENCY = process.env.PRODUCT_CURRENCY || "USD";
 const PRODUCT_PRICE = process.env.PRODUCT_PRICE || process.env.PRODUCT_PRICE_USD || "14.90";
+const PRODUCT_PUBLIC_ENABLED = flag("PRODUCT_PUBLIC_ENABLED", true);
+const FREE_EDITION_ENABLED = flag("FREE_EDITION_ENABLED", !PRODUCT_PUBLIC_ENABLED);
+const PAYMENT_TEST_ENABLED = flag("PAYMENT_TEST_ENABLED", false);
 let paypalTokenCache = null;
 
 const MIME = {
@@ -384,7 +395,21 @@ function publicOrigin(req) {
 }
 
 function paypalConfigured() {
-  return Boolean(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET);
+  return paymentsEnabled() && Boolean(PAYPAL_CLIENT_ID && PAYPAL_CLIENT_SECRET);
+}
+
+function paymentsEnabled() {
+  return PRODUCT_PUBLIC_ENABLED || PAYMENT_TEST_ENABLED;
+}
+
+function sendPaymentDisabled(res) {
+  send(res, 404, JSON.stringify({ ok: false, error: "payments disabled" }), { "Content-Type": "application/json; charset=utf-8" });
+}
+
+function checkoutCancelUrl(origin) {
+  if (PRODUCT_PUBLIC_ENABLED) return `${origin}/ai-agent-audit-kit/`;
+  if (PAYMENT_TEST_ENABLED) return `${origin}/sandbox/ai-agent-audit-kit/`;
+  return `${origin}/edition.html`;
 }
 
 async function paypalAccessToken() {
@@ -435,7 +460,13 @@ async function paypalRequest(method, path, body, requestId = randomUUID()) {
   }
   if (!response.ok) {
     const detail = json.message || json.error_description || json.raw || text;
-    throw new Error(`PayPal API failed: ${response.status} ${detail}`);
+    const err = new Error(`PayPal API failed: ${response.status} ${detail}`);
+    err.status = response.status;
+    err.paypal = json;
+    err.paypalName = String(json.name || json.error || "");
+    err.paypalIssue = String((json.details || []).map((item) => item.issue).find(Boolean) || "");
+    err.paypalDebugId = String(json.debug_id || "");
+    throw err;
   }
   return json;
 }
@@ -542,9 +573,19 @@ async function handlePaypalConfig(req, res) {
     send(res, 405, "Method Not Allowed", { Allow: "GET", "Content-Type": "text/plain; charset=utf-8" });
     return;
   }
+  if (!paymentsEnabled()) {
+    send(res, 200, JSON.stringify({
+      configured: false,
+      mode: PAYPAL_MODE,
+      currency: PRODUCT_CURRENCY,
+      price: productPriceValue(),
+      productName: PRODUCT_NAME,
+    }), { "Content-Type": "application/json; charset=utf-8" });
+    return;
+  }
   send(res, 200, JSON.stringify({
-    configured: Boolean(PAYPAL_CLIENT_ID),
-    clientId: PAYPAL_CLIENT_ID,
+    configured: paypalConfigured(),
+    clientId: paypalConfigured() ? PAYPAL_CLIENT_ID : "",
     mode: PAYPAL_MODE,
     currency: PRODUCT_CURRENCY,
     price: productPriceValue(),
@@ -555,6 +596,10 @@ async function handlePaypalConfig(req, res) {
 async function handlePaypalCreateOrder(req, res) {
   if (req.method !== "POST") {
     send(res, 405, "Method Not Allowed", { Allow: "POST", "Content-Type": "text/plain; charset=utf-8" });
+    return;
+  }
+  if (!paymentsEnabled()) {
+    sendPaymentDisabled(res);
     return;
   }
 
@@ -586,7 +631,7 @@ async function handlePaypalCreateOrder(req, res) {
         shipping_preference: "NO_SHIPPING",
         user_action: "PAY_NOW",
         return_url: `${origin}/paid/edition.html`,
-        cancel_url: `${origin}/ai-agent-audit-kit/`,
+        cancel_url: checkoutCancelUrl(origin),
       },
     });
 
@@ -604,6 +649,10 @@ async function handlePaypalCreateOrder(req, res) {
 async function handlePaypalCaptureOrder(req, res) {
   if (req.method !== "POST") {
     send(res, 405, "Method Not Allowed", { Allow: "POST", "Content-Type": "text/plain; charset=utf-8" });
+    return;
+  }
+  if (!paymentsEnabled()) {
+    sendPaymentDisabled(res);
     return;
   }
 
@@ -628,6 +677,22 @@ async function handlePaypalCaptureOrder(req, res) {
     send(res, 200, JSON.stringify({ ok: true, accessUrl: "/paid/edition.html" }), { "Content-Type": "application/json; charset=utf-8" });
   } catch (err) {
     console.error("paypal_capture_order_failed", err.message);
+    if (err.paypalIssue === "INSTRUMENT_DECLINED") {
+      send(res, 422, JSON.stringify({
+        ok: false,
+        error: "INSTRUMENT_DECLINED",
+        message: "The sandbox payment method was declined by PayPal. Use a different sandbox buyer account or generated test card.",
+      }), { "Content-Type": "application/json; charset=utf-8" });
+      return;
+    }
+    if (err.status === 422) {
+      send(res, 422, JSON.stringify({
+        ok: false,
+        error: "PAYPAL_CAPTURE_REJECTED",
+        message: "PayPal rejected the capture. Check the sandbox buyer account or test card and try again.",
+      }), { "Content-Type": "application/json; charset=utf-8" });
+      return;
+    }
     send(res, 502, JSON.stringify({ ok: false, error: "PayPal capture failed" }), { "Content-Type": "application/json; charset=utf-8" });
   }
 }
@@ -649,6 +714,10 @@ async function paypalWebhookSignatureIsValid(headers, raw) {
 async function handlePaypalWebhook(req, res) {
   if (req.method !== "POST") {
     send(res, 405, "Method Not Allowed", { Allow: "POST", "Content-Type": "text/plain; charset=utf-8" });
+    return;
+  }
+  if (!paymentsEnabled()) {
+    sendPaymentDisabled(res);
     return;
   }
 
@@ -694,6 +763,11 @@ async function handlePaypalWebhook(req, res) {
 }
 
 function accessForm(message = "") {
+  const backHref = PRODUCT_PUBLIC_ENABLED
+    ? "/ai-agent-audit-kit/"
+    : PAYMENT_TEST_ENABLED
+      ? "/sandbox/ai-agent-audit-kit/"
+      : "/edition.html";
   return htmlPage(
     "Access The Digital Edition",
     `<h1>Access the digital edition</h1>
@@ -703,7 +777,7 @@ function accessForm(message = "") {
         <p><input style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #334;background:#11141b;color:#fff" type="email" name="email" placeholder="you@example.com" autocomplete="email" required></p>
         <p><button style="padding:10px 16px;border-radius:999px;border:0;background:#bdf4df;color:#07110d;font-weight:700" type="submit">Unlock edition</button></p>
       </form>
-      <p><a href="/ai-agent-audit-kit/">Back to the audit kit</a></p>`
+      <p><a href="${backHref}">Back</a></p>`
   );
 }
 
@@ -800,9 +874,12 @@ function localProtectedFilePath(objectPath) {
   const base = normalizedObject.startsWith("kit/")
     ? PRODUCT_BUNDLE_ROOT
     : DIST;
-  const rel = normalizedObject.startsWith("kit/")
+  let rel = normalizedObject.startsWith("kit/")
     ? normalizedObject.slice("kit/".length)
     : normalizedObject;
+  if (!normalizedObject.startsWith("kit/") && normalizedObject === "edition.html" && existsSync(join(DIST, "paid-edition.html"))) {
+    rel = "paid-edition.html";
+  }
   const filePath = join(base, rel);
   if (!filePath.startsWith(base)) return null;
   return filePath;
@@ -897,8 +974,24 @@ async function handlePaid(req, res) {
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   if (url.pathname === "/edition.html" || url.pathname === "/edition") {
-    res.writeHead(303, { Location: "/access", "Cache-Control": "no-store" });
+    if (FREE_EDITION_ENABLED && url.pathname === "/edition") {
+      res.writeHead(303, { Location: "/edition.html", "Cache-Control": "public, max-age=300" });
+      res.end();
+      return;
+    }
+    if (!FREE_EDITION_ENABLED) {
+      res.writeHead(303, { Location: "/access", "Cache-Control": "no-store" });
+      res.end();
+      return;
+    }
+  }
+  if (!PRODUCT_PUBLIC_ENABLED && (url.pathname === "/ai-agent-audit-kit" || url.pathname.startsWith("/ai-agent-audit-kit/"))) {
+    res.writeHead(303, { Location: "/edition.html", "Cache-Control": "public, max-age=300" });
     res.end();
+    return;
+  }
+  if (url.pathname === "/paid-edition.html" || (url.pathname.startsWith("/sandbox/") && !PAYMENT_TEST_ENABLED)) {
+    send(res, 404, "Not Found", { "Content-Type": "text/plain; charset=utf-8" });
     return;
   }
   const filePath = resolveStaticPath(url.pathname);
@@ -908,10 +1001,12 @@ function serveStatic(req, res) {
   }
   const ext = extname(filePath);
   const immutable = [".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico"].includes(ext);
-  res.writeHead(200, {
+  const headers = {
     "Content-Type": MIME[ext] || "application/octet-stream",
     "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=300",
-  });
+  };
+  if (url.pathname.startsWith("/sandbox/")) headers["X-Robots-Tag"] = "noindex, nofollow";
+  res.writeHead(200, headers);
   if (req.method === "HEAD") res.end();
   else createReadStream(filePath).pipe(res);
 }

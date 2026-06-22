@@ -13,6 +13,9 @@
 #   PAYPAL_CLIENT_SECRET  PayPal REST app secret
 #   PAYPAL_MODE           sandbox or live
 #   PAYPAL_WEBHOOK_ID     optional; created/reused automatically if missing
+#   PRODUCT_PUBLIC_ENABLED  true to expose the paid offer publicly
+#   FREE_EDITION_ENABLED    true to serve /edition.html publicly
+#   PAYMENT_TEST_ENABLED    true to expose the hidden noindex sandbox checkout
 #
 set -euo pipefail
 
@@ -69,10 +72,17 @@ PRODUCT_PRICE="${PRODUCT_PRICE:-$(read_env_value PRODUCT_PRICE)}"
 PRODUCT_PRICE="${PRODUCT_PRICE:-14.90}"
 PRODUCT_CURRENCY="${PRODUCT_CURRENCY:-$(read_env_value PRODUCT_CURRENCY)}"
 PRODUCT_CURRENCY="${PRODUCT_CURRENCY:-USD}"
+PRODUCT_PUBLIC_ENABLED="${PRODUCT_PUBLIC_ENABLED:-$(read_env_value PRODUCT_PUBLIC_ENABLED)}"
+PRODUCT_PUBLIC_ENABLED="${PRODUCT_PUBLIC_ENABLED:-false}"
+FREE_EDITION_ENABLED="${FREE_EDITION_ENABLED:-$(read_env_value FREE_EDITION_ENABLED)}"
+FREE_EDITION_ENABLED="${FREE_EDITION_ENABLED:-true}"
+PAYMENT_TEST_ENABLED="${PAYMENT_TEST_ENABLED:-$(read_env_value PAYMENT_TEST_ENABLED)}"
+PAYMENT_TEST_ENABLED="${PAYMENT_TEST_ENABLED:-true}"
 FIRESTORE_LOCATION="${FIRESTORE_LOCATION:-$(read_env_value FIRESTORE_LOCATION)}"
 FIRESTORE_LOCATION="${FIRESTORE_LOCATION:-nam5}"
 PROTECTED_BUCKET="${PROTECTED_BUCKET:-$(read_env_value PROTECTED_BUCKET)}"
 PROTECTED_BUCKET="${PROTECTED_BUCKET:-deleg8-dev-laws-of-ai-protected}"
+export PRODUCT_PRICE PRODUCT_CURRENCY PRODUCT_PUBLIC_ENABLED FREE_EDITION_ENABLED PAYMENT_TEST_ENABLED
 RUN_ENV_VARS=(
   "SITE_URL=https://${DOMAIN}/"
   "FIRESTORE_PROJECT_ID=${PROJECT_ID}"
@@ -81,6 +91,9 @@ RUN_ENV_VARS=(
   "PRODUCT_NAME=AI Agent Audit Kit: 50 Laws Edition"
   "PRODUCT_PRICE=${PRODUCT_PRICE}"
   "PRODUCT_CURRENCY=${PRODUCT_CURRENCY}"
+  "PRODUCT_PUBLIC_ENABLED=${PRODUCT_PUBLIC_ENABLED}"
+  "FREE_EDITION_ENABLED=${FREE_EDITION_ENABLED}"
+  "PAYMENT_TEST_ENABLED=${PAYMENT_TEST_ENABLED}"
 )
 RUN_SECRET_BINDINGS=()
 
@@ -166,7 +179,12 @@ node scripts/build-product-kit.mjs
 echo "==> Uploading protected digital edition assets"
 PROTECTED_STAGE="$(mktemp -d)"
 trap 'rm -rf "$PROTECTED_STAGE"' EXIT
-cp dist/edition.html dist/edition.css dist/nav.css "$PROTECTED_STAGE/"
+if [[ -f dist/paid-edition.html ]]; then
+  cp dist/paid-edition.html "$PROTECTED_STAGE/edition.html"
+else
+  cp dist/edition.html "$PROTECTED_STAGE/edition.html"
+fi
+cp dist/edition.css dist/nav.css "$PROTECTED_STAGE/"
 mkdir -p "$PROTECTED_STAGE/assets/edition"
 cp -R dist/assets/edition/. "$PROTECTED_STAGE/assets/edition/"
 mkdir -p "$PROTECTED_STAGE/kit"
@@ -187,7 +205,12 @@ else
   echo "!! KIT_V4_API_KEY or KIT_FORM_ID missing — deploying without live newsletter API credentials."
 fi
 
-if [[ -n "$PAYPAL_CLIENT_ID" && -n "$PAYPAL_CLIENT_SECRET" ]]; then
+PAYMENTS_RUNTIME_ENABLED=false
+if [[ "$PRODUCT_PUBLIC_ENABLED" == "true" || "$PAYMENT_TEST_ENABLED" == "true" ]]; then
+  PAYMENTS_RUNTIME_ENABLED=true
+fi
+
+if [[ "$PAYMENTS_RUNTIME_ENABLED" == "true" && -n "$PAYPAL_CLIENT_ID" && -n "$PAYPAL_CLIENT_SECRET" ]]; then
   echo "==> Creating or reusing PayPal webhook"
   DISCOVERED_PAYPAL_WEBHOOK_ID="$(PAYPAL_CLIENT_ID="$PAYPAL_CLIENT_ID" PAYPAL_CLIENT_SECRET="$PAYPAL_CLIENT_SECRET" PAYPAL_MODE="$PAYPAL_MODE" node scripts/paypal-webhook.mjs "https://${DOMAIN}/api/paypal/webhook")"
   if [[ -n "$PAYPAL_WEBHOOK_ID" && "$PAYPAL_WEBHOOK_ID" != "$DISCOVERED_PAYPAL_WEBHOOK_ID" ]]; then
@@ -202,8 +225,10 @@ if [[ -n "$PAYPAL_CLIENT_ID" && -n "$PAYPAL_CLIENT_SECRET" ]]; then
   RUN_ENV_VARS+=("PAYPAL_MODE=${PAYPAL_MODE}")
   RUN_ENV_VARS+=("PAYPAL_WEBHOOK_ID=${PAYPAL_WEBHOOK_ID}")
   RUN_SECRET_BINDINGS+=("PAYPAL_CLIENT_SECRET=${PAYPAL_SECRET_NAME}:latest")
-else
+elif [[ "$PAYMENTS_RUNTIME_ENABLED" == "true" ]]; then
   echo "!! PAYPAL_CLIENT_ID or PAYPAL_CLIENT_SECRET missing — PayPal checkout will be disabled until configured."
+else
+  echo "==> PayPal checkout runtime disabled by flags."
 fi
 
 RUN_DEPLOY_ARGS=(--set-env-vars "$(join_by_comma "${RUN_ENV_VARS[@]}")")

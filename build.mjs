@@ -44,10 +44,22 @@ const catById = book.catById;
 const laws = book.laws; // already enriched: slug, source, depth, signals, apply, example, sources, image
 const refs = book.refs;
 
-const productEnabled = () => PRODUCT.enabled !== false && PRODUCT.name;
+const flag = (name, fallback = false) => {
+  const value = process.env[name];
+  if (value === undefined || value === "") return fallback;
+  if (/^(1|true|yes|on)$/i.test(value)) return true;
+  if (/^(0|false|no|off)$/i.test(value)) return false;
+  return fallback;
+};
+const productConfigured = () => PRODUCT.enabled !== false && Boolean(PRODUCT.name);
+const productEnabled = () => productConfigured() && flag("PRODUCT_PUBLIC_ENABLED", true);
+const paymentTestEnabled = () => productConfigured() && flag("PAYMENT_TEST_ENABLED", false);
+const freeEditionEnabled = () => flag("FREE_EDITION_ENABLED", !productEnabled());
 const productUrl = () => `${SITE.url}/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
 const productPath = () => `/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
-const editionEntryPath = () => productEnabled() ? "/access" : "/edition.html";
+const sandboxProductUrl = () => `${SITE.url}/sandbox/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
+const sandboxProductPath = () => `/sandbox/${PRODUCT.slug || "ai-agent-audit-kit"}/`;
+const editionEntryPath = () => freeEditionEnabled() ? "/edition.html" : "/access";
 const checkoutHref = () => PRODUCT.checkoutUrl || "#paypal-checkout";
 const checkoutLabel = () => `Get the kit — ${PRODUCT.price || "$14.90"}`;
 
@@ -486,7 +498,7 @@ function editionToc() {
 }
 
 function buyerResourcesHtml() {
-  if (!productEnabled()) return "";
+  if (!productConfigured()) return "";
   const resources = [
     ["Start here", "/paid/kit/START-HERE.md", "What is included and how to use it."],
     ["Install skill", "/paid/kit/ai-agent-audit/assets/install-codex-claude.md", "Copy the skill into Codex or Claude."],
@@ -508,7 +520,7 @@ ${resources.map(([label, href, note]) => `      <a href="${href}"><span>${esc(la
 `;
 }
 
-function editionHtml() {
+function editionHtml({ buyerResources = false } = {}) {
   const canonical = SITE.url + "/edition.html";
   return `<!DOCTYPE html>
 <html lang="en">
@@ -558,7 +570,7 @@ ${navHtml("edition")}
     </div>
   </header>
 
-${buyerResourcesHtml()}
+${buyerResources ? buyerResourcesHtml() : ""}
 
   <aside class="ed__toc" id="edToc" aria-label="Contents">
     <p class="ed__toc-h">Contents</p>
@@ -585,11 +597,24 @@ ${backTopHtml}
 
   <script>
     (function () {
+      var accessType = location.pathname.indexOf('/paid/') === 0 ? 'paid' : 'free';
+      function track(name, params) {
+        if (window.gtag) {
+          try { window.gtag('event', name, params || {}); } catch (_) {}
+        }
+      }
+      track('edition_view', { page_path: location.pathname, edition_access: accessType });
+
       var all = function () { return Array.prototype.slice.call(document.querySelectorAll('details.lw')); };
       var ea = document.getElementById('expandAll');
       var ca = document.getElementById('collapseAll');
       if (ea) ea.addEventListener('click', function () { all().forEach(function (d) { d.open = true; }); });
       if (ca) ca.addEventListener('click', function () { all().forEach(function (d) { d.open = false; }); });
+      all().forEach(function (d) {
+        d.addEventListener('toggle', function () {
+          if (d.open) track('edition_law_open', { law_id: d.id || '', edition_access: accessType });
+        });
+      });
 
       function openHash() {
         if (!location.hash) return;
@@ -603,11 +628,17 @@ ${backTopHtml}
       var nav = document.getElementById('nav');
       var bar = document.getElementById('progressBar');
       var backtop = document.getElementById('backtop');
+      var fired75 = false;
       function onScroll() {
         var doc = document.documentElement;
         var max = (doc.scrollHeight - doc.clientHeight) || 1;
         var y = window.scrollY || window.pageYOffset || 0;
-        if (bar) bar.style.width = Math.min(100, (y / max) * 100) + '%';
+        var progress = Math.min(100, (y / max) * 100);
+        if (bar) bar.style.width = progress + '%';
+        if (!fired75 && progress >= 75) {
+          fired75 = true;
+          track('scroll_75', { page_path: location.pathname, edition_access: accessType });
+        }
         if (nav) nav.classList.toggle('is-scrolled', y > 8);
         if (backtop) backtop.classList.toggle('is-on', y > 560);
         spy(y);
@@ -1327,8 +1358,7 @@ ${backTopHtml}
 }
 
 // ---------- product page ----------
-function productJsonLd() {
-  const url = productUrl();
+function productJsonLd(url = productUrl()) {
   const price = String(PRODUCT.price || "$14.90").replace(/[^0-9.]/g, "") || "14.90";
   return JSON.stringify({
     "@context": "https://schema.org",
@@ -1349,8 +1379,7 @@ function productJsonLd() {
   });
 }
 
-function productPageHtml() {
-  const url = productUrl();
+function productPageHtml({ url = productUrl(), noindex = false, testPage = false } = {}) {
   const title = `${PRODUCT.name} — ${PRODUCT.price || "$14.90"}`;
   const description = PRODUCT.summary || "A practical self-audit kit for finding issues in AI agents.";
   const story = [
@@ -1407,7 +1436,7 @@ function productPageHtml() {
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(description)}" />
   <meta name="author" content="${esc(SITE.author)}" />
-  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <meta name="robots" content="${noindex ? "noindex, nofollow" : "index, follow, max-image-preview:large"}" />
   <link rel="canonical" href="${url}" />
   <meta property="og:type" content="product" />
   <meta property="og:title" content="${esc(title)}" />
@@ -1425,7 +1454,7 @@ function productPageHtml() {
   <link rel="stylesheet" href="/edition.css" />
   <link rel="stylesheet" href="/law.css" />
   <link rel="stylesheet" href="/nav.css" />
-  <script type="application/ld+json">${productJsonLd()}</script>
+  <script type="application/ld+json">${productJsonLd(url)}</script>
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
 ` : ""}</head>
@@ -1450,6 +1479,7 @@ ${navHtml("product")}
         <a class="law__cta product__buy" href="${checkoutHref()}" ${PRODUCT.checkoutUrl ? `target="_blank" rel="noopener"` : ""} data-track="product_checkout_click" data-product="${esc(PRODUCT.slug || "ai-agent-audit-kit")}">${checkoutLabel()} ${arrow}</a>
         <a class="law__cta law__cta--ghost" href="${SITE.newsletter?.action ? "/#subscribe" : "/"}">Start with the free course</a>
       </div>
+      ${testPage ? `<p class="product__test-note">Hidden sandbox checkout page. This is not linked from the public site and is marked noindex.</p>` : ""}
       ${checkoutSetup}
     </header>
 
@@ -1528,9 +1558,9 @@ ${backTopHtml}
       var nav=document.getElementById('nav'),bt=document.getElementById('backtop');
       function track(n,p){if(window.gtag){try{window.gtag('event',n,p||{});}catch(_){}}}
       function status(msg,isError){var el=document.getElementById('paypal-checkout-status');if(el){el.textContent=msg||'';el.classList.toggle('is-error',!!isError);}}
-      function json(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json().then(function(data){if(!r.ok){throw new Error(data.error||'Request failed');}return data;});});}
+      function json(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json().then(function(data){if(!r.ok){var e=new Error(data.message||data.error||'Request failed');e.code=data.error||'';throw e;}return data;});});}
       function loadPayPalSdk(cfg){return new Promise(function(resolve,reject){if(window.paypal){resolve();return;}var s=document.createElement('script');s.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency='+encodeURIComponent(cfg.currency||'USD')+'&intent=capture';s.onload=resolve;s.onerror=function(){reject(new Error('PayPal checkout could not load'));};document.head.appendChild(s);});}
-      function initPayPal(){var container=document.getElementById('paypal-button-container'),email=document.getElementById('buyer-email');if(!container||!email)return;fetch('/api/paypal/config',{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(cfg){if(!cfg.configured){status('PayPal checkout is not configured yet.',true);return;}if(cfg.mode==='sandbox'){status('Sandbox checkout active. Use a PayPal sandbox buyer account for testing.',true);}return loadPayPalSdk(cfg).then(function(){window.paypal.Buttons({style:{layout:'vertical',shape:'rect',label:'pay'},onClick:function(_,actions){if(!email.checkValidity()){email.reportValidity();status('Enter the email you want to use for access.',true);return actions.reject();}status('Opening PayPal checkout...');return actions.resolve();},createOrder:function(){return json('/api/paypal/create-order',{email:email.value}).then(function(order){track('product_checkout_start',{product:'ai-agent-audit-kit',provider:'paypal'});return order.id;});},onApprove:function(data){status('Capturing payment...');return json('/api/paypal/capture-order',{orderID:data.orderID,email:email.value}).then(function(result){track('product_checkout_paid',{product:'ai-agent-audit-kit',provider:'paypal'});window.location.href=result.accessUrl||'/paid/edition.html';});},onCancel:function(){status('Checkout canceled.');},onError:function(err){console.error(err);status('PayPal checkout failed. Try again or refresh the page.',true);}}).render('#paypal-button-container');});}).catch(function(err){console.error(err);status('PayPal checkout is unavailable right now.',true);});}
+      function initPayPal(){var container=document.getElementById('paypal-button-container'),email=document.getElementById('buyer-email');if(!container||!email)return;fetch('/api/paypal/config',{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(cfg){if(!cfg.configured){status('PayPal checkout is not configured yet.',true);return;}if(cfg.mode==='sandbox'){status('Sandbox checkout active. Use a PayPal sandbox buyer account for testing.',true);}return loadPayPalSdk(cfg).then(function(){window.paypal.Buttons({style:{layout:'vertical',shape:'rect',label:'pay'},onClick:function(_,actions){if(!email.checkValidity()){email.reportValidity();status('Enter the email you want to use for access.',true);return actions.reject();}status('Opening PayPal checkout...');return actions.resolve();},createOrder:function(){return json('/api/paypal/create-order',{email:email.value}).then(function(order){track('product_checkout_start',{product:'ai-agent-audit-kit',provider:'paypal'});return order.id;});},onApprove:function(data,actions){status('Capturing payment...');return json('/api/paypal/capture-order',{orderID:data.orderID,email:email.value}).then(function(result){track('product_checkout_paid',{product:'ai-agent-audit-kit',provider:'paypal'});window.location.href=result.accessUrl||'/paid/edition.html';}).catch(function(err){if(err.code==='INSTRUMENT_DECLINED'&&actions&&actions.restart){status('Sandbox payment method was declined. Choose another buyer account or test card.',true);return actions.restart();}throw err;});},onCancel:function(){status('Checkout canceled.');},onError:function(err){console.error(err);status(err&&err.message?err.message:'PayPal checkout failed. Try again or refresh the page.',true);}}).render('#paypal-button-container');});}).catch(function(err){console.error(err);status('PayPal checkout is unavailable right now.',true);});}
       function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
       window.addEventListener('scroll',s,{passive:true});s();
       if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
@@ -1581,6 +1611,7 @@ function lawCss() {
 .product__lede{max-width:680px;color:var(--dim);margin-top:16px;font-size:16px}
 .product__actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
 .product__buy{background:linear-gradient(135deg,#f3f4f6,#bdf4df);border-color:#bdf4df}
+.product__test-note{margin-top:14px;font-family:var(--mono);font-size:12px;color:#ffcf8a}
 .product__setup{margin-top:18px;padding:14px 16px;border-radius:14px;border:1px solid color-mix(in srgb,var(--ac) 24%,var(--border));background:color-mix(in srgb,var(--ac) 8%,var(--card));color:var(--dim)}
 .product__setup code{font-family:var(--mono);font-size:.92em;color:var(--text)}
 .product__checkout{max-width:520px;padding:18px}
@@ -1650,7 +1681,7 @@ function sitemapXml() {
   const urls = [
     { loc: SITE.url + "/", priority: "1.0" },
     ...(productEnabled() ? [{ loc: productUrl(), priority: "0.9" }] : []),
-    ...(!productEnabled() ? [{ loc: `${SITE.url}/edition.html`, priority: "0.9" }] : []),
+    ...(freeEditionEnabled() ? [{ loc: `${SITE.url}/edition.html`, priority: "0.9" }] : []),
     { loc: `${SITE.url}/sabir/`, priority: "0.6" },
     { loc: `${SITE.url}/laws-of-ai-vs-laws-of-ux/`, priority: "0.7" },
     ...DATA.categories.map((c) => ({ loc: `${SITE.url}/category/${c.id}/`, priority: "0.8" })),
@@ -1674,18 +1705,21 @@ if (existsSync(DIST)) rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST, { recursive: true });
 
 // Public data API — full content, minus internal-only image resolution paths.
+const publicSite = { ...book.site };
+if (!productEnabled()) delete publicSite.product;
 const publicData = {
   title: book.title,
   subtitle: book.subtitle,
   intro: book.intro,
-  site: book.site,
+  site: publicSite,
   categories: book.categories,
   laws: book.laws.map(({ image, ...rest }) => ({ ...rest, hasImage: !!image })),
   references: refs,
 };
 
 writeFileSync(join(DIST, "index.html"), indexHtml());
-writeFileSync(join(DIST, "edition.html"), editionHtml());
+writeFileSync(join(DIST, "edition.html"), editionHtml({ buyerResources: false }));
+if (productConfigured()) writeFileSync(join(DIST, "paid-edition.html"), editionHtml({ buyerResources: true }));
 writeFileSync(join(DIST, "edition.css"), editionCss());
 writeFileSync(join(DIST, "law.css"), lawCss());
 writeFileSync(join(DIST, "nav.css"), navCss());
@@ -1734,6 +1768,15 @@ if (productEnabled()) {
   mkdirSync(PRODUCT_DIR, { recursive: true });
   writeFileSync(join(PRODUCT_DIR, "index.html"), productPageHtml());
 }
+if (paymentTestEnabled()) {
+  const SANDBOX_PRODUCT_DIR = join(DIST, "sandbox", PRODUCT.slug || "ai-agent-audit-kit");
+  mkdirSync(SANDBOX_PRODUCT_DIR, { recursive: true });
+  writeFileSync(join(SANDBOX_PRODUCT_DIR, "index.html"), productPageHtml({
+    url: sandboxProductUrl(),
+    noindex: true,
+    testPage: true,
+  }));
+}
 
 // Copy the hero diagrams used by the digital edition into dist/assets/edition/.
 const EDITION_ASSETS = join(DIST, "assets", "edition");
@@ -1749,5 +1792,6 @@ console.log(`✓ Built ${laws.length} laws + ${refs.length} refs -> dist/`);
 console.log(`  · ${laws.length} per-law pages at /law/{slug}/`);
 console.log(`  · ${DATA.categories.length} category hubs at /category/{id}/`);
 if (productEnabled()) console.log(`  · product page at /${PRODUCT.slug || "ai-agent-audit-kit"}/`);
+if (paymentTestEnabled()) console.log(`  · hidden sandbox checkout at ${sandboxProductPath()}`);
 console.log(`  · author page, comparison page, llms.txt, sitemap`);
 console.log(`  · ${copiedImgs} diagrams copied`);

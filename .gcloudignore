@@ -1,14 +1,12 @@
 .git
 .github
-.gitignore
-README.md
-scripts
-node_modules
 .env
 .env.*
 *.local
 .local/
+.omx/
+node_modules/
 product/ai-agent-audit-kit/build/
 product/ai-agent-audit-kit/releases/
-*.md
+*.log
 .DS_Store

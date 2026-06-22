@@ -1,19 +1,10 @@
-# ---- build stage: pre-render the SEO-optimized static site ----
-FROM node:22-alpine AS build
-WORKDIR /app
-COPY data ./data
-COPY src ./src
-COPY lib ./lib
-COPY pdf/assets ./pdf/assets
-COPY build.mjs ./
-RUN node build.mjs
-
-# ---- serve stage: static site + newsletter API on 8080 for Cloud Run ----
 FROM node:22-alpine
 WORKDIR /app
 
-COPY --from=build /app/dist ./dist
+COPY dist ./dist
 COPY server.mjs ./
+
+RUN test -f dist/index.html && test -f dist/edition.html
 
 EXPOSE 8080
 
