@@ -887,6 +887,305 @@ function publicKitFilePath(objectPath) {
   return filePath;
 }
 
+// ---------- markdown rendering for kit pages ----------
+
+const KIT_NAV_LINKS = [
+  ["Start here", "/kit/START-HERE.md", "What the kit is and how to use it."],
+  ["Skill prompt", "/kit/ai-agent-audit/SKILL.md", "The installable ai-agent-audit skill."],
+  ["Full rubric", "/kit/ai-agent-audit/references/50-laws-audit-rubric.md", "All 50 laws as an audit rubric."],
+  ["Platform intake", "/kit/ai-agent-audit/assets/platform-intake.md", "Platform-specific evidence checklist."],
+  ["Install guide", "/kit/ai-agent-audit/assets/install-codex-claude.md", "Install in Codex or Claude."],
+  ["Copy-paste prompt", "/kit/ai-agent-audit/assets/copy-paste-audit-prompt.md", "Use without installable skill support."],
+  ["Sample audit", "/kit/ai-agent-audit/assets/sample-audit.md", "Example output for a flawed support agent."],
+  ["Intake checklist", "/kit/ai-agent-audit/assets/intake-checklist.md", "Gather prompts, tools, traces, and evals."],
+  ["Report template", "/kit/ai-agent-audit/assets/audit-report-template.md", "Turn findings into a fix plan."],
+];
+
+function escHtml(s = "") {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function mdInline(text) {
+  return escHtml(text)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/(?<!\w)\*(.+?)\*(?!\w)/g, "<em>$1</em>")
+    .replace(/(?<!\w)_(.+?)_(?!\w)/g, "<em>$1</em>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+
+function renderMarkdown(raw) {
+  const md = raw.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
+  const lines = md.split(/\r?\n/);
+  const out = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // Fenced code block
+    if (/^```/.test(line)) {
+      const lang = line.slice(3).trim();
+      const code = [];
+      i++;
+      while (i < lines.length && !/^```\s*$/.test(lines[i])) { code.push(lines[i]); i++; }
+      if (i < lines.length) i++;
+      out.push(`<pre><code${lang ? ` class="language-${escHtml(lang)}"` : ""}>${escHtml(code.join("\n"))}</code></pre>`);
+      continue;
+    }
+
+    // Heading
+    const hm = line.match(/^(#{1,6})\s+(.+)/);
+    if (hm) { out.push(`<h${hm[1].length}>${mdInline(hm[2])}</h${hm[1].length}>`); i++; continue; }
+
+    // Horizontal rule
+    if (/^(---+|\*\*\*+|___+)\s*$/.test(line)) { out.push("<hr>"); i++; continue; }
+
+    // Blockquote
+    if (/^>\s?/.test(line)) {
+      const q = [];
+      while (i < lines.length && /^>\s?/.test(lines[i])) { q.push(lines[i].replace(/^>\s?/, "")); i++; }
+      out.push(`<blockquote>${renderMarkdown(q.join("\n"))}</blockquote>`);
+      continue;
+    }
+
+    // Unordered list
+    if (/^[-*+]\s/.test(line)) {
+      out.push("<ul>");
+      while (i < lines.length) {
+        if (/^[-*+]\s/.test(lines[i])) {
+          const text = lines[i].replace(/^[-*+]\s/, "");
+          i++;
+          const sub = [];
+          while (i < lines.length && /^\s{2,}/.test(lines[i]) && lines[i].trim()) {
+            if (/^\s{2,}[-*+]\s/.test(lines[i])) sub.push(lines[i].trim().replace(/^[-*+]\s/, ""));
+            else sub.push(null); // continuation of parent
+            i++;
+          }
+          if (sub.length && sub.some(s => s !== null)) {
+            const nested = sub.filter(s => s !== null).map(s => `<li>${mdInline(s)}</li>`).join("");
+            out.push(`<li>${mdInline(text)}<ul>${nested}</ul></li>`);
+          } else {
+            out.push(`<li>${mdInline(text)}</li>`);
+          }
+        } else if (!lines[i].trim()) {
+          if (i + 1 < lines.length && (/^[-*+]\s/.test(lines[i + 1]) || /^\s{2,}/.test(lines[i + 1]))) { i++; } else break;
+        } else break;
+      }
+      out.push("</ul>");
+      continue;
+    }
+
+    // Ordered list
+    if (/^\d+\.\s/.test(line)) {
+      out.push("<ol>");
+      while (i < lines.length) {
+        if (/^\d+\.\s/.test(lines[i])) {
+          const text = lines[i].replace(/^\d+\.\s/, "");
+          i++;
+          const sub = [];
+          while (i < lines.length && /^\s{2,}/.test(lines[i]) && lines[i].trim()) {
+            if (/^\s{2,}[-*+]\s/.test(lines[i])) sub.push(lines[i].trim().replace(/^[-*+]\s/, ""));
+            else sub.push(null);
+            i++;
+          }
+          if (sub.length && sub.some(s => s !== null)) {
+            const nested = sub.filter(s => s !== null).map(s => `<li>${mdInline(s)}</li>`).join("");
+            out.push(`<li>${mdInline(text)}<ul>${nested}</ul></li>`);
+          } else {
+            out.push(`<li>${mdInline(text)}</li>`);
+          }
+        } else if (!lines[i].trim()) {
+          if (i + 1 < lines.length && (/^\d+\.\s/.test(lines[i + 1]) || /^\s{2,}/.test(lines[i + 1]))) { i++; } else break;
+        } else break;
+      }
+      out.push("</ol>");
+      continue;
+    }
+
+    // Empty line
+    if (!line.trim()) { i++; continue; }
+
+    // Paragraph
+    const para = [];
+    while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|```|[-*+]\s|\d+\.\s|>\s?|---+$|\*\*\*+$|___+$)/.test(lines[i])) {
+      para.push(lines[i]); i++;
+    }
+    if (para.length) out.push(`<p>${mdInline(para.join(" "))}</p>`);
+  }
+
+  return out.join("\n");
+}
+
+function kitPageTitle(objectPath, rendered) {
+  const h1 = rendered.match(/<h1>([^<]+)<\/h1>/);
+  if (h1) return h1[1].replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
+  const name = objectPath.split("/").pop().replace(/\.md$/, "").replace(/[-_]/g, " ");
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+function kitBreadcrumb(objectPath) {
+  const fileName = objectPath.split("/").pop();
+  return `<a href="/">Home</a>
+    <span aria-hidden="true">\u203a</span>
+    <a href="/ai-agent-audit-kit/">Audit Kit</a>
+    <span aria-hidden="true">\u203a</span>
+    <span aria-current="page">${escHtml(fileName)}</span>`;
+}
+
+function kitPageHtml(objectPath, rawContent) {
+  const rendered = renderMarkdown(rawContent);
+  const title = kitPageTitle(objectPath, rendered);
+  const currentHref = `/kit/${objectPath}`;
+  const navMark = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2.4-7 4.2 14 2.4-7H21"/></svg>';
+  const arrow = '<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';
+
+  const kitLinksHtml = KIT_NAV_LINKS
+    .map(([label, href, note]) => {
+      const active = href === currentHref ? ' class="kit__link--active"' : "";
+      return `        <a href="${href}"${active}><span>${escHtml(label)}</span><small>${escHtml(note)}</small></a>`;
+    })
+    .join("\n");
+
+  const body = rendered.replace(/<h1>[^<]*<\/h1>\n?/, "");
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escHtml(title)} \u2014 AI Agent Audit Kit | Laws of AI Agents</title>
+  <meta name="description" content="${escHtml(title)} \u2014 part of the AI Agent Audit Kit from Laws of AI Agents.">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#0b0c10">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/edition.css">
+  <link rel="stylesheet" href="/law.css">
+  <link rel="stylesheet" href="/nav.css">
+  <style>
+.kit__body{margin-top:8px}
+.kit__body p{margin:10px 0;line-height:1.7}
+.kit__body h2{font-family:var(--serif);font-weight:500;font-size:clamp(22px,3.5vw,28px);letter-spacing:-.01em;margin-top:32px;margin-bottom:8px}
+.kit__body h3{font-family:var(--serif);font-weight:500;font-size:clamp(17px,2.5vw,21px);margin-top:24px;margin-bottom:6px}
+.kit__body h4{font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-top:20px;margin-bottom:4px}
+.kit__body ul,.kit__body ol{margin:10px 0;padding-left:24px}
+.kit__body li{margin:5px 0;line-height:1.6}
+.kit__body li ul{margin:4px 0 4px 0}
+.kit__body code{font-family:var(--mono);font-size:.88em;background:color-mix(in srgb,var(--accent) 12%,var(--card));padding:2px 6px;border-radius:4px;color:var(--text)}
+.kit__body pre{margin:14px 0;padding:16px 18px;border-radius:10px;border:1px solid var(--border);background:var(--card);overflow-x:auto;line-height:1.55}
+.kit__body pre code{background:none;padding:0;font-size:13px;color:var(--dim)}
+.kit__body blockquote{margin:14px 0;padding:12px 18px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 6%,transparent);border-radius:0 8px 8px 0}
+.kit__body blockquote p{margin:4px 0;color:var(--dim)}
+.kit__body hr{border:none;border-top:1px solid var(--border);margin:28px 0}
+.kit__body a{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.kit__body a:hover{color:var(--text)}
+.kit__body strong{color:var(--text);font-weight:600}
+.kit__actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:32px;padding-top:24px;border-top:1px solid var(--border)}
+.kit__btn{font-family:var(--mono);font-size:13px;border-radius:99px;padding:10px 18px;display:inline-flex;align-items:center;gap:7px;transition:transform .2s var(--ease),opacity .2s;cursor:pointer;border:none}
+.kit__btn--copy{color:#0a0b0f;background:var(--text)}
+.kit__btn--copy:hover{transform:translateY(-1px);opacity:.92}
+.kit__btn--copy.is-copied{background:#5ed3a8}
+.kit__btn--dl{color:var(--text);background:transparent;border:1px solid var(--border);text-decoration:none}
+.kit__btn--dl:hover{border-color:var(--dim);transform:translateY(-1px)}
+.kit__sibling{margin-top:32px;padding-top:24px;border-top:1px solid var(--border)}
+.kit__sibling h2{font-family:var(--serif);font-weight:500;font-size:20px;margin-bottom:12px}
+.kit__sibling nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.kit__sibling a{display:block;min-height:60px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,#14161d 82%,transparent);padding:12px;transition:border-color .2s,background .2s,transform .2s var(--ease);text-decoration:none}
+.kit__sibling a:hover{border-color:var(--accent);background:var(--card-hover);transform:translateY(-1px)}
+.kit__sibling a.kit__link--active{border-color:color-mix(in srgb,#5ed3a8 50%,var(--border));background:color-mix(in srgb,#5ed3a8 10%,var(--card))}
+.kit__sibling span{display:block;font-family:var(--mono);font-size:12px;color:var(--text);font-weight:600}
+.kit__sibling small{display:block;margin-top:4px;color:var(--dim);font-size:12px;line-height:1.35}
+@media(max-width:720px){.kit__sibling nav{grid-template-columns:1fr}}
+  </style>
+</head>
+<body class="ed law">
+  <div class="grain" aria-hidden="true"></div>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="nav" id="nav">
+    <div class="nav__in">
+      <a class="nav__brand" href="/" aria-label="Laws of AI Agents \u2014 home">
+        <span class="nav__mark">${navMark}</span>
+        <span class="nav__brandtx">Laws of AI Agents</span>
+      </a>
+      <nav class="nav__links" aria-label="Primary">
+        <a class="nav__link" href="/#main">All laws</a>
+        <a class="nav__link is-active" href="/ai-agent-audit-kit/">Audit kit</a>
+        <a class="nav__link" href="/edition.html">Digital edition</a>
+        <a class="nav__link" href="/#references">Sources</a>
+      </nav>
+      <a class="nav__cta" href="/ai-agent-audit-kit/">Get the kit ${arrow}</a>
+    </div>
+  </header>
+
+  <nav class="crumb" aria-label="Breadcrumb">
+    ${kitBreadcrumb(objectPath)}
+  </nav>
+
+  <article class="law__page" id="main" style="--ac:#5ed3a8">
+    <header class="law__hero">
+      <p class="law__eyebrow">Audit Kit \u00b7 Free during launch</p>
+      <h1 class="law__title">${escHtml(title)}</h1>
+    </header>
+
+    <section class="law__body kit__body">
+${body}
+    </section>
+
+    <div class="kit__actions">
+      <button class="kit__btn kit__btn--copy" id="copyBtn" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Copy markdown
+      </button>
+      <a class="kit__btn kit__btn--dl" href="${escHtml(currentHref)}?raw">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        View raw
+      </a>
+      <a class="kit__btn kit__btn--dl" href="/kit.zip">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download zip
+      </a>
+    </div>
+
+    <section class="kit__sibling">
+      <h2>All kit files</h2>
+      <nav aria-label="Audit kit files">
+${kitLinksHtml}
+      </nav>
+    </section>
+  </article>
+
+  <button class="backtop" id="backtop" type="button" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+  </button>
+
+  <script>
+  (function(){
+    var btn=document.getElementById('copyBtn');
+    if(btn) btn.addEventListener('click',function(){
+      fetch(location.pathname+'?raw').then(function(r){return r.text();}).then(function(t){
+        return navigator.clipboard.writeText(t);
+      }).then(function(){
+        btn.classList.add('is-copied');
+        btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+        setTimeout(function(){
+          btn.classList.remove('is-copied');
+          btn.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy markdown';
+        },2000);
+      });
+    });
+    var nav=document.getElementById('nav'),bt=document.getElementById('backtop');
+    function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
+    window.addEventListener('scroll',s,{passive:true});s();
+    if(bt) bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+  })();
+  </script>
+</body>
+</html>`;
+}
+
 function serveFilePath(req, res, filePath, { privateCache = false } = {}) {
   const ext = extname(filePath);
   const headers = {
@@ -1003,6 +1302,14 @@ function servePublicKit(req, res) {
     send(res, 404, "Not Found", { "Content-Type": "text/plain; charset=utf-8" });
     return;
   }
+
+  if (extname(filePath) === ".md" && !url.searchParams.has("raw")) {
+    const rawContent = readFileSync(filePath, "utf8");
+    const html = kitPageHtml(objectPath, rawContent);
+    send(res, 200, html, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "public, max-age=300" });
+    return;
+  }
+
   serveFilePath(req, res, filePath);
 }
 
