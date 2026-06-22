@@ -6,7 +6,6 @@
 .local/
 .omx/
 node_modules/
-product/ai-agent-audit-kit/build/
 product/ai-agent-audit-kit/releases/
 *.log
 .DS_Store
