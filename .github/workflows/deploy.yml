@@ -27,6 +27,14 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      - name: Build static assets
+        env:
+          PRODUCT_PUBLIC_ENABLED: "false"
+          FREE_EDITION_ENABLED: "true"
+          PAYMENT_TEST_ENABLED: "true"
+        run: |
+          bash scripts/build-all.sh
+
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy "$SERVICE" \
@@ -40,6 +48,7 @@ jobs:
             --allow-unauthenticated \
             --cpu 1 \
             --memory 256Mi \
+            --update-env-vars PRODUCT_PUBLIC_ENABLED=false,FREE_EDITION_ENABLED=true,PAYMENT_TEST_ENABLED=true \
             --quiet
 
       - name: Show URL
