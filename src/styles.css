@@ -912,5 +912,19 @@ a:hover { color: var(--accent); }
 .grid:focus { outline: none; }
 @media (max-width: 680px) {
   .filterbar { top: 49px; }
+  .filterbar__in { gap: 10px; padding: 0 16px; }
   .filters__count { display: none; }
+  /* One swipeable row instead of 10 stacked rows eating the screen. */
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+  .filter { flex: none; scroll-snap-align: start; }
+  .filters__meta { flex: none; }
+  .filters__viewed { white-space: nowrap; }
 }
