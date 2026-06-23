@@ -115,6 +115,13 @@
       $$(".filter", filtersEl).forEach((b) =>
         b.classList.toggle("is-active", b === btn)
       );
+      // Center the tapped pill in the horizontal scroller (mobile carousel feel).
+      if (filtersEl.scrollWidth > filtersEl.clientWidth) {
+        filtersEl.scrollTo({
+          left: btn.offsetLeft - filtersEl.clientWidth / 2 + btn.clientWidth / 2,
+          behavior: "smooth",
+        });
+      }
       applyFilters();
       track("category_filter", { category: activeCategory });
     });

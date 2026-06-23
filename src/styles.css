@@ -922,6 +922,9 @@ a:hover { color: var(--accent); }
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    /* Fade the edges so it reads as a draggable carousel. */
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 18px), transparent 100%);
   }
   .filters::-webkit-scrollbar { display: none; }
   .filter { flex: none; scroll-snap-align: start; }
