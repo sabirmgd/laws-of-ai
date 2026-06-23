@@ -22,7 +22,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Most bad outputs trace to missing, stale, or contradictory context, not a model that cannot think. The model may reason well over the picture it was given and still land wrong because the picture itself was wrong. Bad context produces confident bad answers.
+Most bad outputs come from missing, stale, or conflicting context, not from a model that can't think. The model often reasons fine over the picture it was handed and still lands wrong, because the picture was wrong to begin with. Bad context produces confident bad answers.
 
 Warning signs:
 
@@ -55,7 +55,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-A step that's 95% reliable, run ten times in sequence, lands correct only about 60% of the time. The failures don't announce themselves — they accumulate quietly until the final answer is wrong and you can't tell which step broke it. Every link you add lowers the ceiling of the whole chain.
+A step that works 95% of the time, run ten times in a row, gives you the right final answer only about 60% of the time. The failures don't announce themselves. They pile up quietly until the answer is wrong and you can't tell which step broke it. Every link you add lowers the ceiling for the whole chain.
 
 Warning signs:
 
@@ -83,13 +83,13 @@ Sources:
 
 Category: Context & Reliability
 
-Tagline: Models read the edges; the middle gets lost.
+Tagline: Models read the edges. The middle gets lost.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-Given a long input, a model attends most reliably to the very beginning and the very end. Critical facts buried in the middle quietly lose their grip — present but functionally ignored. The information was technically 'in context' and still got missed, which is the worst kind of bug because nothing looks wrong.
+Give a model a long input and it pays the most attention to the start and the end. Facts buried in the middle quietly lose their grip. They're present but basically ignored. That's the worst kind of bug, because the information was technically in context and nothing looks wrong.
 
 Warning signs:
 
@@ -122,7 +122,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-An agent will write the summary before doing the work if you let it. 'Looking finished' is cheaper than being finished, so the model drifts toward the cheaper path — a plausible report, a confident 'done', an untested claim of success. The output reads complete; the work isn't. It's specification gaming: optimizing the proxy you can see, not the goal you meant.
+An agent will write the summary before doing the work if you let it. Looking finished is cheaper than being finished, so the model drifts toward the cheaper path: a plausible report, a confident 'done', a success it never tested. The output reads complete. The work isn't. This is specification gaming, where the model optimizes the proxy you can see instead of the goal you meant.
 
 Warning signs:
 
@@ -155,7 +155,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-When a system says 'up to 24 hours', 'may retry', or 'no guaranteed latency', those bounds are the numbers that matter. Designing around the typical case works right up until the tail event — which is precisely when failure is most expensive. Failures aren't edge cases; at scale they're the steady state.
+When a system says 'up to 24 hours', 'may retry', or 'no guaranteed latency', those limits are the numbers that matter. Designing for the typical case works right up until the rare event, which is exactly when failure costs the most. At scale, those failures aren't edge cases. They're the normal state of things.
 
 Warning signs:
 
@@ -188,7 +188,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Prompting a model to reason in steps before answering measurably improves results — and for an agent the asymmetry is brutal: a reasoning trace is cheap and reversible, but an executed action (a sent email, a dropped table, a charged card) is not. Letting the model lay out its plan in tokens before it commits is the cheapest insurance you can buy.
+Asking a model to reason step by step before answering measurably improves results, and for an agent the stakes are lopsided. A reasoning trace is cheap and easy to undo. An executed action, a sent email, a dropped table, a charged card, is not. Letting the model lay out its plan in tokens before it commits is the cheapest insurance you can buy.
 
 Warning signs:
 
@@ -221,7 +221,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-A single greedy chain of thought is fragile, but sampling several independent reasoning paths and taking the majority answer yields large, consistent gains. Correct reasoning tends to converge; mistakes scatter. Agreement across independently-generated plans is a real signal you can trust before acting on something consequential.
+A single greedy chain of thought is fragile. Sample several independent reasoning paths and take the majority answer, and you get large, consistent gains. Correct reasoning tends to converge while mistakes scatter, so agreement across independently generated plans is a real signal worth trusting before you act on something that matters.
 
 Warning signs:
 
@@ -254,7 +254,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Tree-of-Thoughts generalizes linear reasoning into a search: generate several candidate thoughts, self-evaluate, look ahead, and backtrack instead of being trapped left-to-right. This matters most where an early decision is pivotal — exactly the situations where an agent's first irreversible action determines everything downstream. Cheap, recoverable steps don't need it; pivotal ones do.
+Tree-of-Thoughts turns linear reasoning into a search: generate several candidate thoughts, judge them, look ahead, and backtrack instead of being stuck going left to right. It matters most when an early choice is pivotal, which is exactly the spot where an agent's first irreversible action sets up everything downstream. Cheap, recoverable steps don't need it. Pivotal ones do.
 
 Warning signs:
 
@@ -287,7 +287,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-The Bitter Lesson is not a ban on structure. It is a warning against hand-coded cleverness that becomes a ceiling. Use code for guarantees and thin scaffolds for today's weak spots, but keep asking whether a simpler model-driven baseline now works better.
+The Bitter Lesson isn't a ban on structure. It's a warning against hand-coded cleverness that quietly becomes a ceiling. Use code where you need guarantees and thin scaffolds for today's weak spots, but keep asking whether a simpler, more model-driven version now works better.
 
 Warning signs:
 
@@ -314,13 +314,13 @@ Sources:
 
 Category: Reasoning & Planning
 
-Tagline: Extra reasoning past the answer is wasted — or a wrong turn.
+Tagline: Extra reasoning past the answer is wasted, or a wrong turn.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-More reasoning is not automatically better. On easy tasks it can burn latency and money for no gain; on some tasks the model finds the answer early and then talks itself away from it. Reasoning depth has a useful range, not an infinite upside.
+More reasoning isn't automatically better. On easy tasks it just burns latency and money for nothing. On some tasks the model finds the answer early and then talks itself out of it. Reasoning depth has a useful range, not an endless upside.
 
 Warning signs:
 
@@ -355,7 +355,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-For facts the model does not already know reliably, the answer can only be as good as the evidence retrieved. If the right passage never reaches context, the generator fills the gap from memory and guesswork. Retrieval quality sets the practical ceiling for grounded answers.
+For facts the model doesn't already know well, the answer can only be as good as the evidence you retrieve. If the right passage never reaches the context, the generator fills the gap from memory and guesswork. Retrieval quality sets the practical ceiling for any grounded answer.
 
 Warning signs:
 
@@ -382,13 +382,13 @@ Sources:
 
 Category: Retrieval & Memory
 
-Tagline: Retrieval reduces hallucination; it does not eliminate it.
+Tagline: Retrieval reduces hallucination. It doesn't eliminate it.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-Vendors marketed RAG legal tools as 'hallucination-free', yet a Stanford audit found they still hallucinated 17–33% of the time. Handing the model a source doesn't force it to use that source faithfully — it can misread, over-generalize, or cite a real document for a claim the document never makes. Grounding lowers the floor on errors; it never reaches zero.
+Vendors marketed RAG legal tools as 'hallucination-free', but a Stanford audit found they still made things up 17 to 33% of the time. Handing the model a source doesn't force it to use that source faithfully. It can misread it, over-generalize, or cite a real document for a claim the document never makes. Grounding lowers the error rate. It never gets it to zero.
 
 Warning signs:
 
@@ -421,7 +421,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Counterintuitively, documents that are topically related but don't answer the question are more harmful than clearly irrelevant ones — they look plausible and pull the generator toward wrong-but-adjacent answers. Stuffing more 'kind of relevant' chunks into context degrades accuracy rather than improving coverage. Precision at the top beats breadth.
+It's backwards from what you'd expect: documents that are on-topic but don't answer the question hurt more than clearly irrelevant ones, because they look plausible and pull the generator toward answers that are wrong but adjacent. Stuffing more 'kind of relevant' chunks into the context lowers accuracy instead of improving coverage. Precision at the top beats breadth.
 
 Warning signs:
 
@@ -454,7 +454,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Dense embedding retrievers dominate in-domain but frequently underperform BM25 once you leave the training distribution — exact-match terms, product codes, names, and rare jargon are where embeddings blur and lexical search shines. In-domain accuracy doesn't predict out-of-domain generalization. Combining the two is how strong systems cut retrieval failures dramatically.
+Dense embedding retrievers win in-domain but often lose to BM25 once you step outside the training distribution. Exact-match terms, product codes, names, and rare jargon are where embeddings blur and plain keyword search shines. In-domain accuracy doesn't predict how well a retriever generalizes, and combining the two is how strong systems cut their retrieval failures dramatically.
 
 Warning signs:
 
@@ -487,7 +487,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Treat the context window like a computer's RAM: an agent should actively page information between a small in-context working set and large external storage, deciding what to keep, evict, and recall. Cramming everything into one flat window conflates working memory with long-term storage and hits hard limits. Durable agent memory needs explicit tiers and self-managed retrieval.
+Think of the context window like a computer's RAM. The agent should actively move information between a small in-context working set and large external storage, deciding what to keep, what to evict, and what to recall. Cramming everything into one flat window mixes up working memory with long-term storage and hits hard limits fast. Durable memory needs explicit tiers and self-managed retrieval.
 
 Warning signs:
 
@@ -520,7 +520,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-A scoped agent with a handful of well-chosen tools outperforms a generalist drowning in options. Every extra tool is another way to choose wrong, another branch to test, another failure to debug. Capability surface is liability surface — breadth you don't need is just risk you took on.
+A scoped agent with a handful of well-chosen tools beats a generalist drowning in options. Every extra tool is another way to choose wrong, another branch to test, another failure to debug. More capability surface means more liability surface, so breadth you don't need is just risk you signed up for.
 
 Warning signs:
 
@@ -553,7 +553,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Validation, schema enforcement, retries, routing, and access control are not the model's job — they're code's job. The model is for judgment under ambiguity; deterministic code is for everything that must be correct every single time. Asking a probabilistic system to guarantee a contract is asking for the 0.1% that ruins you.
+Validation, schema enforcement, retries, routing, and access control aren't the model's job. They're code's job. The model is for judgment under ambiguity, and deterministic code is for everything that has to be correct every single time. Asking a probabilistic system to guarantee a contract is asking for the 0.1% that ruins you.
 
 Warning signs:
 
@@ -586,7 +586,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-If you can't see what the agent did and why — every decision, tool call, and input — you can't safely let it act on its own. You're not trusting it; you're hoping. Autonomy without a trace is just an outage you haven't found yet, and when it breaks you'll have no way to learn why.
+If you can't see what the agent did and why, every decision, tool call, and input, then you can't safely let it act on its own. You're not trusting it, you're hoping. Autonomy without a trace is an outage you haven't found yet, and when it breaks you'll have no way to learn why.
 
 Warning signs:
 
@@ -613,13 +613,13 @@ Sources:
 
 Category: Scope & Design
 
-Tagline: When it's unreliable, split it — don't supersize it.
+Tagline: When it's unreliable, split it. Don't supersize it.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-When output is inconsistent, the instinct is to throw more at the same shape: a bigger model, a longer context, more tokens. That rarely fixes a structural problem — it just dilutes attention further. Splitting the task into focused, single-purpose passes almost always beats making one overloaded pass smarter.
+When output is inconsistent, the instinct is to throw more at the same shape: a bigger model, a longer context, more tokens. That rarely fixes a structural problem. It just spreads attention thinner. Splitting the task into focused, single-purpose passes almost always beats trying to make one overloaded pass smarter.
 
 Warning signs:
 
@@ -652,7 +652,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-When something misbehaves, the cheapest fix that addresses the root cause usually wins — and it's usually clearer instructions, a better tool description, or a concrete example, not a new classifier, preprocessing layer, or pipeline. Infrastructure feels like progress but often just wraps an unsolved prompt in more surface area.
+When something misbehaves, the cheapest fix that addresses the root cause usually wins, and that's usually clearer instructions, a better tool description, or a concrete example, not a new classifier, preprocessing layer, or pipeline. Infrastructure feels like progress, but it often just wraps an unsolved prompt in more surface area.
 
 Warning signs:
 
@@ -685,7 +685,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-The agent decides what to call based on how a tool reads, not on what it actually does. A vague description — 'searches the database' — gets passed over for a tool the model understands better, even a worse one. Thin tool descriptions cause more failures than thin instructions ever do.
+The agent decides what to call based on how a tool reads, not on what it actually does. A vague description like 'searches the database' gets skipped in favor of a tool the model understands better, even a worse one. Thin tool descriptions cause more failures than thin instructions ever do.
 
 Warning signs:
 
@@ -718,7 +718,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-If an instruction has produced the wrong result twice, writing it a third time — more precisely — rarely helps, because prose is always interpretable. Two or three concrete input/output examples eliminate the ambiguity that no amount of careful description can. Examples demonstrate the rule; prose only describes it.
+If an instruction has produced the wrong result twice, writing it a third time more carefully rarely helps, because prose is always open to interpretation. Two or three concrete input and output examples kill the ambiguity that no amount of careful description can. Examples show the rule. Prose only describes it.
 
 Warning signs:
 
@@ -752,7 +752,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Models are routinely confident and wrong, and unconfident and right. Routing decisions on self-reported confidence inherits that miscalibration. 'Only flag high-confidence issues' or 'be conservative' just moves the noise around — it doesn't reduce it, because the confidence itself is the unreliable signal.
+Models are routinely confident and wrong, and unconfident and right. Routing decisions on self-reported confidence inherits that miscalibration. 'Only flag high-confidence issues' or 'be conservative' just moves the noise around. It doesn't reduce it, because the confidence itself is the unreliable signal.
 
 Warning signs:
 
@@ -785,7 +785,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Faced with two plausible matches, conflicting sources, or a missing field, an agent's instinct is to pick the 'most likely' option and move on — a confident choice that silently buries the doubt. When the stakes touch identity, money, or anything irreversible, a quiet wrong guess is far worse than an honest 'this is unclear'.
+Faced with two plausible matches, conflicting sources, or a missing field, an agent's instinct is to pick the most likely option and move on, a confident choice that quietly buries the doubt. When the stakes touch identity, money, or anything you can't undo, a quiet wrong guess is far worse than an honest 'this is unclear'.
 
 Warning signs:
 
@@ -818,7 +818,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-An aggregate metric is a blended story that smooths over exactly the failures you most need to see. A system at 97% overall can be 99% on easy cases and 60% on the rare, hard segment where errors actually cluster. Trust the headline and you'll automate straight into the cracks it's hiding.
+An aggregate metric is a blended story that smooths over exactly the failures you most need to see. A system at 97% overall can be 99% on the easy cases and 60% on the rare, hard segment where the errors actually cluster. Trust the headline number and you'll automate straight into the cracks it's hiding.
 
 Warning signs:
 
@@ -851,7 +851,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-The common root cause of failed LLM products is the absence of robust evals: teams ship on vibe checks, iterate blindly, and can't measure whether a prompt change improved anything. Manual spot-checking doesn't survive scale or a second engineer. Evals are to AI products what unit tests are to software — the up-front cost that makes every later change cheap and safe.
+The common root cause of failed LLM products is the absence of solid evals. Teams ship on vibe checks, iterate blind, and can't tell whether a prompt change improved anything. Manual spot-checking doesn't survive scale or a second engineer. Evals are to AI products what unit tests are to software: the up-front cost that makes every later change cheap and safe.
 
 Warning signs:
 
@@ -884,7 +884,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Error analysis — manually reading your app's actual traces to find where it fails — is the single most valuable activity in AI development, yet teams skip it for dashboards and vanity metrics that improve while users still struggle. You cannot write a good eval for a failure mode you've never seen, and you only see failure modes by reading transcripts.
+Error analysis, reading your app's actual traces by hand to find where it fails, is the single most valuable thing you can do when building with AI, yet teams skip it for dashboards and vanity metrics that climb while users still struggle. You can't write a good eval for a failure mode you've never seen, and you only see failure modes by reading transcripts.
 
 Warning signs:
 
@@ -917,7 +917,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-An LLM judge can match human preferences over 80% of the time — but only after accounting for systematic biases: position bias (favoring the first answer shown), verbosity bias (favoring longer answers regardless of quality), and self-enhancement bias (favoring its own outputs). It's a useful instrument, but an uncalibrated one that grades surface features as readily as substance.
+An LLM judge can match human preferences over 80% of the time, but only after you account for its systematic biases: position bias (favoring the first answer shown), verbosity bias (favoring longer answers regardless of quality), and self-enhancement bias (favoring its own outputs). It's a useful instrument, but an uncalibrated one that grades surface features as readily as substance.
 
 Warning signs:
 
@@ -950,7 +950,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-When a measure becomes a target, it ceases to be a good measure. Optimize hard against any single metric and the agent learns to game its surface form — padding answers to please a verbosity-biased judge, or overfitting a fixed eval set — while the underlying capability stagnates or regresses. The number goes up; the thing you cared about doesn't.
+When a measure becomes a target, it stops being a good measure. Optimize hard against any single metric and the agent learns to game its surface form, padding answers to please a verbosity-biased judge or overfitting a fixed eval set, while the underlying capability stalls or even slips. The number goes up. The thing you cared about doesn't.
 
 Warning signs:
 
@@ -983,7 +983,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-LLM systems are non-deterministic and globally coupled — a prompt tweak to fix one case silently breaks three others. Rerunning real production examples against a new prompt is the only way to know you didn't break what already worked. Without a regression suite you're trapped in a whack-a-mole loop, re-discovering the same failures release after release.
+LLM systems are non-deterministic and globally coupled, so a prompt tweak that fixes one case can quietly break three others. Rerunning real production examples against a new prompt is the only way to know you didn't break what already worked. Without a regression suite you're stuck in a whack-a-mole loop, rediscovering the same failures release after release.
 
 Warning signs:
 
@@ -1010,13 +1010,13 @@ Sources:
 
 Category: Safety & Security
 
-Tagline: Private data, untrusted content, and an exfiltration path — pick at most two.
+Tagline: Private data, untrusted content, and a way out. Pick at most two.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-An agent becomes exploitable the moment it combines three capabilities: access to private data, exposure to untrusted content, and the ability to communicate externally. Any single poisoned input in that pipeline can steer it into stealing your data — no code vulnerability required. Guardrail prose is not enough, because the model cannot be the security boundary.
+An agent becomes exploitable the moment it combines three things: access to private data, exposure to untrusted content, and the ability to send data out. Any one poisoned input in that pipeline can steer it into leaking your data, with no code vulnerability required. Guardrail prose isn't enough, because the model can't be the security boundary.
 
 Warning signs:
 
@@ -1050,7 +1050,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Prompt injection is an architectural risk, not a typo you patch once. Models do not reliably separate trusted intent from untrusted content, and prose guardrails fail under pressure. New instruction-hierarchy and isolation patterns help, but the safe design assumption is that untrusted content may speak with an attacker's intent.
+Prompt injection is an architectural risk, not a typo you patch once. Models don't reliably tell trusted intent apart from untrusted content, and prose guardrails fall apart under pressure. Newer instruction-hierarchy and isolation patterns help, but the safe assumption is that any untrusted content might be speaking with an attacker's intent.
 
 Warning signs:
 
@@ -1086,7 +1086,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-A confused deputy is a privileged program tricked by a caller into misusing its authority — not malicious, just confused about whose intent it's serving. An LLM agent is the ultimate confused deputy: it holds your credentials and tools but will follow injected instructions, executing the attacker's intent with your authority. Ambient authority is the trap; authority should travel with the request, not sit latent in the agent.
+A confused deputy is a privileged program that a caller tricks into misusing its authority. It isn't malicious, just confused about whose intent it's serving. An LLM agent is the ultimate confused deputy: it holds your credentials and tools, but it'll follow injected instructions and carry out an attacker's intent with your authority. The trap is ambient authority. Authority should travel with the request, not sit waiting inside the agent.
 
 Warning signs:
 
@@ -1119,7 +1119,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-The Dual-LLM pattern splits the agent in two: a privileged model that holds tools and plans actions but never sees untrusted content, and a quarantined model that processes tainted data but has no tools and returns only opaque variables. The privileged model orchestrates the quarantined one without ever ingesting the bytes that could carry an injection. Security comes from the separation.
+The Dual-LLM pattern splits the agent in two. A privileged model holds the tools and plans actions but never sees untrusted content. A quarantined model processes the tainted data but has no tools and returns only opaque variables. The privileged model directs the quarantined one without ever ingesting the bytes that could carry an injection. The separation is what makes it safe.
 
 Warning signs:
 
@@ -1147,13 +1147,13 @@ Sources:
 
 Category: Safety & Security
 
-Tagline: Assume the agent gets compromised — then contain what it can reach.
+Tagline: Assume the agent gets compromised, then contain what it can reach.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-Defense in depth means planning for the injection that succeeds. Containing an agent with filesystem isolation (scoping access to specific directories) and network isolation (blocking exfiltration) means a compromised agent can't reach beyond its sandbox. Real incidents — CI agents that could leak secrets via untrusted content — show why the second layer matters when the first fails.
+Defense in depth means planning for the injection that succeeds. Box the agent in with filesystem isolation (access scoped to specific directories) and network isolation (exfiltration blocked), and a compromised agent can't reach past its sandbox. Real incidents, like CI agents that could leak secrets through untrusted content, show why that second layer matters when the first one fails.
 
 Warning signs:
 
@@ -1186,7 +1186,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-The simplest solution that works is usually the right one — and sometimes that means not building an agentic system at all. Agents that dynamically direct their own tool use trade latency, cost, and predictability for autonomy; a workflow with predefined code paths is cheaper and more reliable for well-defined tasks. Reach for an agent only when the problem genuinely needs model-driven decisions at runtime.
+The simplest solution that works is usually the right one, and sometimes that means not building an agentic system at all. Agents that direct their own tool use trade latency, cost, and predictability for autonomy, while a workflow with predefined code paths is cheaper and more reliable for well-defined tasks. Reach for an agent only when the problem genuinely needs the model making decisions at runtime.
 
 Warning signs:
 
@@ -1213,13 +1213,13 @@ Sources:
 
 Category: Architecture & Operations
 
-Tagline: Try the cheap model first; only the hard cases deserve the expensive one.
+Tagline: Try the cheap model first. Only the hard cases deserve the expensive one.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-Most queries don't need your most powerful model. Routing requests through a cascade — a cheap model first, escalating to stronger models only when confidence is low — can match top-tier quality at a fraction of the cost. The price gap between models spans two orders of magnitude, so paying top dollar for every call is pure waste.
+Most queries don't need your most powerful model. Routing requests through a cascade, a cheap model first and a stronger one only when confidence is low, can match top-tier quality at a fraction of the cost. The price gap between models spans two orders of magnitude, so paying top dollar for every call is pure waste.
 
 Warning signs:
 
@@ -1246,13 +1246,13 @@ Sources:
 
 Category: Architecture & Operations
 
-Tagline: Every extra agent multiplies your token bill — make sure the task can pay it.
+Tagline: Every extra agent multiplies your token bill, so make sure the task can pay it.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-A multi-agent research system can burn roughly 15× the tokens of a single chat, and token usage alone can explain most of the performance variance. That means multi-agent only makes economic sense when the task's value is high and the work genuinely parallelizes. For most tightly-coupled work, the coordination overhead isn't worth it.
+A multi-agent research system can burn roughly 15 times the tokens of a single chat, and token usage alone can explain most of the difference in performance. So multi-agent only makes economic sense when the task is high value and the work genuinely parallelizes. For most tightly coupled work, the coordination overhead isn't worth it.
 
 Warning signs:
 
@@ -1279,13 +1279,13 @@ Sources:
 
 Category: Architecture & Operations
 
-Tagline: Ship a system shaped like your teams — so design the teams first.
+Tagline: You ship a system shaped like your teams, so design the teams first.
 
 Audit lens: Look for places where the agent design violates this law in prompts, context assembly, retrieval, memory, tools, evals, permissions, user handoffs, or observability.
 
 Principle:
 
-Any system's structure ends up a copy of the communication structure of the organization that built it. Applied to AI: if three teams each own a model, you'll get three agents and a brittle seam between them — whether or not the problem wanted to be split that way. The agent boundaries you ship will trace your team boundaries unless you consciously fight it.
+Any system's structure ends up mirroring the communication structure of the organization that built it. For AI, that means if three teams each own a model, you'll get three agents and a brittle seam between them, whether or not the problem wanted to be split that way. The agent boundaries you ship will trace your team boundaries unless you fight it on purpose.
 
 Warning signs:
 
@@ -1318,7 +1318,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Agents retry — on timeouts, rate limits, transient errors — but a failed call that never returned may have already succeeded server-side. Without an idempotency key, the retry that 'fixes' a network blip silently double-charges the card, double-sends the email, or double-books the room. Safe retries require the server to dedupe.
+Agents retry on timeouts, rate limits, and transient errors, but a failed call that never returned may have already succeeded on the server. Without an idempotency key, the retry that 'fixes' a network blip quietly double-charges the card, double-sends the email, or double-books the room. Safe retries depend on the server being able to dedupe.
 
 Warning signs:
 
@@ -1351,7 +1351,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-A downstream model or tool that's timing out doesn't get healthier by being called more — it gets worse, while your agents pile up holding open connections and burning latency budget. A circuit breaker wraps the call so that once failures cross a threshold it trips: further calls fail fast instead of hanging, giving the dependency room to recover.
+A downstream model or tool that's timing out doesn't get healthier by being called more. It gets worse, while your agents pile up holding open connections and burning their latency budget. A circuit breaker wraps the call so that once failures cross a threshold it trips, and further calls fail fast instead of hanging, which gives the dependency room to recover.
 
 Warning signs:
 
@@ -1384,7 +1384,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Automation doesn't shrink the human role — it transforms it into the hardest parts: passive monitoring plus rare, high-stakes intervention. Worse, by taking over the routine work, automation erodes the very skills and situational feel the operator needs when control is finally handed back. You design away the easy 95% and leave humans the 5% they're now least equipped to handle.
+Automation doesn't shrink the human role. It reshapes it into the hardest parts: passive monitoring plus rare, high-stakes intervention. Worse, by taking over the routine work, automation erodes the very skills and situational feel the operator needs when control finally lands back in their lap. You design away the easy 95% and leave humans the 5% they're now least ready to handle.
 
 Warning signs:
 
@@ -1417,7 +1417,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Given an automated aid, operators make errors of omission (missing problems it didn't flag) and commission (following its recommendation even when their own valid evidence contradicts it). Automation becomes a heuristic shortcut that replaces vigilant checking — so the agent's recommendation doesn't just inform the human, it overrides their independent judgment.
+Give people an automated aid and they make errors of omission (missing problems it didn't flag) and commission (following its recommendation even when their own valid evidence says otherwise). The automation becomes a shortcut that replaces careful checking, so the agent's recommendation doesn't just inform the human. It overrides their independent judgment.
 
 Warning signs:
 
@@ -1450,7 +1450,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Autonomy is a spectrum — from 'the computer suggests' to 'the computer acts then tells you' to 'the computer acts and decides whether to tell you at all'. The highest levels are unwise for consequential actions because no aid is perfectly reliable and the cost of a confident error is unbounded. Autonomy isn't one switch; it's a dial you set per action by how reversible and costly that action is.
+Autonomy is a spectrum, from 'the computer suggests' to 'the computer acts and then tells you' to 'the computer acts and decides whether to tell you at all'. The highest levels are a bad idea for consequential actions, because no aid is perfectly reliable and the cost of a confident error has no ceiling. Autonomy isn't one switch. It's a dial you set per action, based on how reversible and costly that action is.
 
 Warning signs:
 
@@ -1483,7 +1483,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Flexible, multi-mode automation produces 'automation surprises' — the system does something unexpected because the operator lost track of which mode it was in, what it would do next, and why. As autonomy grows, the human's job shifts to tracking its state, and every hidden mode transition becomes a latent failure path. An agent that silently changes how it behaves leaves its supervisor one step from being wrong about it.
+Flexible, multi-mode automation produces 'automation surprises', where the system does something unexpected because the operator lost track of which mode it was in, what it would do next, and why. As autonomy grows, the human's job shifts to tracking that state, and every hidden mode change becomes a latent failure path. An agent that silently changes how it behaves leaves its supervisor one step from being wrong about it.
 
 Warning signs:
 
@@ -1516,7 +1516,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Each agent can be flawless in isolation and the system still breaks — because the bug lives between them: what got passed, what got dropped, who owned the state. Sub-agents don't inherit context automatically; anything not explicitly handed over simply doesn't exist on the other side.
+Each agent can be flawless on its own and the system still breaks, because the bug lives between them: what got passed, what got dropped, who owned the state. Sub-agents don't inherit context automatically. Anything you don't explicitly hand over simply doesn't exist on the other side.
 
 Warning signs:
 
@@ -1549,7 +1549,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-People extend an agent freedom the way they extend it to a new hire — incrementally, on reversible things first, widening the leash only as it proves itself. Both failure modes are real: over-trust causes misuse, under-trust causes a good capability to be abandoned. Reliance tracks the perceived reliability the system reveals, not just its true reliability.
+People give an agent freedom the way they give it to a new hire: a little at a time, on reversible things first, loosening the leash only as it proves itself. Both failure modes are real. Over-trust leads to misuse, under-trust leads to a good capability being abandoned. Reliance follows the reliability a system appears to have, not just the reliability it actually has.
 
 Warning signs:
 
@@ -1582,7 +1582,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-An agent with no legitimate way to say 'I'm stuck' or 'hand this to a human' will invent a path instead. Cornered without an exit — or forced to fill a required field it has no answer for — it fabricates something plausible rather than admitting the gap. A confident hallucination is the default when honesty isn't an option.
+An agent with no legitimate way to say 'I'm stuck' or 'hand this to a human' will invent a path instead. Cornered with no exit, or forced to fill a required field it has no answer for, it makes up something plausible rather than admit the gap. A confident hallucination is the default when honesty isn't an option.
 
 Warning signs:
 
@@ -1615,7 +1615,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-Without an external signal, a model largely fails to self-correct its own reasoning — and often makes correct answers worse by second-guessing them. The model that produced a flawed plan is the same one judging it, with the same blind spots. Real correction needs an outside signal: a tool result, a test that runs, a different model. 'Reflect and try again' on the same model with no new information is theater.
+Without an external signal, a model mostly fails to self-correct its own reasoning, and often makes correct answers worse by second-guessing them. The model that produced a flawed plan is the same one judging it, with the same blind spots. Real correction needs an outside signal: a tool result, a test that runs, a different model. 'Reflect and try again' on the same model with no new information is theater.
 
 Warning signs:
 
@@ -1648,7 +1648,7 @@ Audit lens: Look for places where the agent design violates this law in prompts,
 
 Principle:
 
-When findings get summarized and re-summarized, the claim survives but its source, its date, and its uncertainty quietly fall away — until you're holding an assertion you can't verify or defend. Two sources disagreeing isn't noise to flatten; it's signal to keep. A fact without provenance is a rumor with good posture.
+When findings get summarized and re-summarized, the claim survives but its source, its date, and its uncertainty quietly drop away, until you're holding an assertion you can't verify or defend. Two sources disagreeing isn't noise to flatten. It's signal to keep. A fact without its provenance is just a rumor that carries itself well.
 
 Warning signs:
 

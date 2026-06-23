@@ -1116,7 +1116,7 @@ function kitPageHtml(objectPath, rawContent) {
         <a class="nav__link" href="/edition.html">Digital edition</a>
         <a class="nav__link" href="/#references">Sources</a>
       </nav>
-      <a class="nav__cta" href="/ai-agent-audit-kit/">Get the kit ${arrow}</a>
+      <a class="nav__cta" href="/ai-agent-audit-kit/">Audit your agent ${arrow}</a>
     </div>
   </header>
 

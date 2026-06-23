@@ -19,31 +19,105 @@
   const modal = $("#modal");
   if (!modal) return;
 
+  // ---------- Viewed tracking (localStorage) ----------
+  // Smart progress: cards the visitor has opened or marked are remembered
+  // across visits, with an optional "hide viewed" filter to focus on the rest.
+  const VIEWED_KEY = "loa:viewed:v1";
+  const TOTAL = cards.length;
+  let viewed = new Set();
+  try {
+    const raw = localStorage.getItem(VIEWED_KEY);
+    if (raw) viewed = new Set(JSON.parse(raw));
+  } catch (_) {}
+  const saveViewed = () => {
+    try { localStorage.setItem(VIEWED_KEY, JSON.stringify([...viewed])); } catch (_) {}
+  };
+
+  const viewedToggle = $("#viewedToggle");
+  const viewedCountEl = $("#viewedCount");
+  let activeCategory = "all";
+  let hideViewed = false;
+
+  function reflectCard(card) {
+    const on = viewed.has(card.id);
+    card.classList.toggle("is-viewed", on);
+    const btn = $(".card__viewed", card);
+    if (btn) btn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
+  function updateViewedUI() {
+    const n = viewed.size;
+    if (viewedCountEl) viewedCountEl.textContent = `${n} of ${TOTAL} viewed`;
+    if (viewedToggle) {
+      viewedToggle.hidden = n === 0;
+      if (n === 0) { hideViewed = false; viewedToggle.setAttribute("aria-pressed", "false"); }
+    }
+  }
+
+  function setViewed(card, on) {
+    if (on) viewed.add(card.id); else viewed.delete(card.id);
+    saveViewed();
+    reflectCard(card);
+    updateViewedUI();
+    applyFilters();
+  }
+
+  // ---------- Unified filtering (category + hide-viewed) ----------
+  function applyFilters() {
+    cards.forEach((c) => {
+      const catOk = activeCategory === "all" || c.dataset.category === activeCategory;
+      const viewedOk = !hideViewed || !viewed.has(c.id);
+      c.style.display = catOk && viewedOk ? "" : "none";
+    });
+    updateCount();
+  }
+
+  const countEl = $("#filtersCount");
+  function updateCount() {
+    if (!countEl) return;
+    const n = cards.filter((c) => c.style.display !== "none").length;
+    countEl.textContent = n + (n === 1 ? " law" : " laws");
+  }
+
+  // Initial paint of viewed state.
+  cards.forEach(reflectCard);
+  updateViewedUI();
+
+  // Per-card viewed toggle (does not open the modal).
+  cards.forEach((card) => {
+    const btn = $(".card__viewed", card);
+    if (!btn) return;
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const next = !viewed.has(card.id);
+      setViewed(card, next);
+      track(next ? "law_marked_viewed" : "law_unmarked_viewed", { law_slug: card.id });
+    });
+  });
+
+  if (viewedToggle) {
+    viewedToggle.addEventListener("click", () => {
+      hideViewed = !hideViewed;
+      viewedToggle.setAttribute("aria-pressed", hideViewed ? "true" : "false");
+      applyFilters();
+      track("viewed_filter_toggle", { hide_viewed: hideViewed });
+    });
+  }
+
   // ---------- Filters ----------
   const filtersEl = $("#filters");
   if (filtersEl) {
     filtersEl.addEventListener("click", (e) => {
       const btn = e.target.closest(".filter");
       if (!btn) return;
-      const id = btn.dataset.filter;
+      activeCategory = btn.dataset.filter;
       $$(".filter", filtersEl).forEach((b) =>
         b.classList.toggle("is-active", b === btn)
       );
-      cards.forEach((c) => {
-        const show = id === "all" || c.dataset.category === id;
-        c.style.display = show ? "" : "none";
-      });
-      updateCount();
-      track("category_filter", { category: id });
+      applyFilters();
+      track("category_filter", { category: activeCategory });
     });
-  }
-
-  // ---------- Live filter count ----------
-  const countEl = $("#filtersCount");
-  function updateCount() {
-    if (!countEl) return;
-    const n = cards.filter((c) => c.style.display !== "none").length;
-    countEl.textContent = n + (n === 1 ? " law" : " laws");
   }
 
   // ---------- Sticky nav shadow + back-to-top + scroll_75 ----------
@@ -118,9 +192,9 @@
     const d = dataFromCard(card);
     $("#modal-number").textContent = "Law " + d.number;
     const mIcon = $("#modal-icon");
-    const cIcon = $(".card__icon", card);
-    if (mIcon && cIcon) {
-      mIcon.innerHTML = cIcon.innerHTML;
+    const cVisual = $(".card__img", card) || $(".card__icon", card);
+    if (mIcon && cVisual) {
+      mIcon.innerHTML = cVisual.outerHTML;
       mIcon.style.color = d.accent;
     }
     const tag = $("#modal-tag");
@@ -136,7 +210,7 @@
     if (srcEl) {
       if (d.sourceUrl) {
         const label = d.sourceAuthor
-          ? `${d.sourceTitle} — ${d.sourceAuthor}`
+          ? `${d.sourceTitle}, ${d.sourceAuthor}`
           : d.sourceTitle;
         srcEl.textContent = "Source: " + label;
         srcEl.href = d.sourceUrl;
@@ -151,6 +225,8 @@
     if (push && card.id && location.hash !== "#" + card.id) {
       history.pushState(null, "", "#" + card.id);
     }
+    // Smart: opening a law marks it viewed (kept in localStorage).
+    if (card.id && !viewed.has(card.id)) setViewed(card, true);
     track("law_open", { law_slug: card.id, category: card.dataset.category });
   }
 
@@ -164,6 +240,8 @@
 
   cards.forEach((card) => {
     card.addEventListener("click", (e) => {
+      // the viewed toggle handles its own click; don't open the modal for it
+      if (e.target.closest("[data-viewed-toggle]")) return;
       // let the inner anchor manage the hash; we still open the modal
       if (e.target.closest(".card__link")) e.preventDefault();
       openCard(card, true);

@@ -1,12 +1,12 @@
 {
   "title": "Laws of AI Agents",
-  "subtitle": "Hard-won heuristics for building agents that actually work.",
-  "intro": "Not proven theorems — field notes, each backed by a real source. Fifty model-agnostic principles spanning context, reasoning, retrieval, scope, instruction, evaluation, safety, architecture, operations, and the humans in the loop. Inspired by the format of Laws of UX; every card carries its receipt.",
+  "subtitle": "Lessons from building AI agents that actually work.",
+  "intro": "These aren't proven theorems. They're field notes from building real agents, and every one points back to a source you can check. Fifty principles that hold no matter which model you use, covering context, reasoning, retrieval, scope, instructions, evaluation, safety, architecture, operations, and the people in the loop. The format is borrowed from Laws of UX.",
   "site": {
     "url": "https://laws.deleg8.dev",
     "name": "Laws of AI Agents",
     "version": "v3",
-    "description": "Fifty hard-won, source-backed, model-agnostic laws for building AI agents that actually work — covering context, reasoning, retrieval, scope, instruction, evaluation, safety, architecture, operations, and human oversight. Inspired by the format of Laws of UX.",
+    "description": "Fifty source-backed, model-agnostic laws for building AI agents that actually work. They cover context, reasoning, retrieval, scope, instructions, evaluation, safety, architecture, operations, and human oversight. Inspired by the format of Laws of UX.",
     "author": "Sabir Moglad",
     "keywords": "AI agents, LLM agents, agent design, agent reliability, prompt engineering, tool design, RAG, retrieval augmented generation, multi-agent systems, agent evaluation, evals, prompt injection, lethal trifecta, agentic workflows, building AI agents, agent architecture, context engineering, laws of AI agents",
     "ogImage": "https://laws.deleg8.dev/og-image.png",
@@ -22,7 +22,7 @@
       "currency": "USD",
       "checkoutProvider": "Free access",
       "checkoutUrl": "",
-      "summary": "An evidence-based audit workflow for real AI agents: use it in code repos, n8n/workflow exports, SDK/API projects, black-box transcript reviews, or client reports to find concrete failure modes and fixes.",
+      "summary": "An audit workflow for real AI agents. Run it on code repos, n8n or workflow exports, SDK and API projects, black-box transcript reviews, or client reports to find concrete failure modes and the fixes for them.",
       "promise": "Use the audit skill free while we decide what should stay free and what should become paid.",
       "note": "The audit skill files are public during the launch period."
     },
@@ -48,381 +48,381 @@
     {
       "number": 1, "name": "Law of Context Decay", "category": "context-reliability",
       "tagline": "Most agent failures start with the wrong context.",
-      "principle": "Most bad outputs trace to missing, stale, or contradictory context, not a model that cannot think. The model may reason well over the picture it was given and still land wrong because the picture itself was wrong. Bad context produces confident bad answers.",
-      "takeaway": "Before you reach for a bigger model, audit exactly what the agent saw. Fix freshness, relevance, and contradictions first; many apparent reasoning bugs disappear there.",
+      "principle": "Most bad outputs come from missing, stale, or conflicting context, not from a model that can't think. The model often reasons fine over the picture it was handed and still lands wrong, because the picture was wrong to begin with. Bad context produces confident bad answers.",
+      "takeaway": "Before you reach for a bigger model, look at exactly what the agent saw. Fix freshness, relevance, and contradictions first. A lot of bugs that look like bad reasoning disappear once you do.",
       "source": { "title": "Effective Context Engineering for AI Agents", "author": "Anthropic", "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" }
     },
     {
       "number": 2, "name": "Compounding Error Law", "category": "context-reliability",
       "tagline": "Reliability multiplies, it doesn't add.",
-      "principle": "A step that's 95% reliable, run ten times in sequence, lands correct only about 60% of the time. The failures don't announce themselves — they accumulate quietly until the final answer is wrong and you can't tell which step broke it. Every link you add lowers the ceiling of the whole chain.",
-      "takeaway": "Count your steps. Shorten the chain, raise per-step reliability, and checkpoint between stages so a single bad step can't silently poison everything downstream.",
+      "principle": "A step that works 95% of the time, run ten times in a row, gives you the right final answer only about 60% of the time. The failures don't announce themselves. They pile up quietly until the answer is wrong and you can't tell which step broke it. Every link you add lowers the ceiling for the whole chain.",
+      "takeaway": "Count your steps. Make the chain shorter, push up per-step reliability, and add checkpoints between stages so one bad step can't quietly poison everything after it.",
       "source": { "title": "Building Effective Agents", "author": "Anthropic", "url": "https://www.anthropic.com/research/building-effective-agents" }
     },
     {
       "number": 3, "name": "Position Is Power", "category": "context-reliability",
-      "tagline": "Models read the edges; the middle gets lost.",
-      "principle": "Given a long input, a model attends most reliably to the very beginning and the very end. Critical facts buried in the middle quietly lose their grip — present but functionally ignored. The information was technically 'in context' and still got missed, which is the worst kind of bug because nothing looks wrong.",
-      "takeaway": "Put the most important instructions and findings at the top or the bottom. Lead with a summary, structure with explicit headers, and never assume that 'in the context' means 'actually used'.",
+      "tagline": "Models read the edges. The middle gets lost.",
+      "principle": "Give a model a long input and it pays the most attention to the start and the end. Facts buried in the middle quietly lose their grip. They're present but basically ignored. That's the worst kind of bug, because the information was technically in context and nothing looks wrong.",
+      "takeaway": "Put the most important instructions and findings at the top or the bottom. Lead with a summary, break things up with clear headers, and don't assume that 'in the context' means the model actually used it.",
       "source": { "title": "Lost in the Middle: How Language Models Use Long Contexts", "author": "Liu et al., 2023", "url": "https://arxiv.org/abs/2307.03172" }
     },
     {
       "number": 4, "name": "The Model Optimizes for Looking Done", "category": "context-reliability",
       "tagline": "Agents declare victory early.",
-      "principle": "An agent will write the summary before doing the work if you let it. 'Looking finished' is cheaper than being finished, so the model drifts toward the cheaper path — a plausible report, a confident 'done', an untested claim of success. The output reads complete; the work isn't. It's specification gaming: optimizing the proxy you can see, not the goal you meant.",
-      "takeaway": "Demand evidence, not assertions. Make the agent produce the artifact — the passing test, the diff, the file, the citation — before it's allowed to claim success. Verify the proof, not the promise.",
+      "principle": "An agent will write the summary before doing the work if you let it. Looking finished is cheaper than being finished, so the model drifts toward the cheaper path: a plausible report, a confident 'done', a success it never tested. The output reads complete. The work isn't. This is specification gaming, where the model optimizes the proxy you can see instead of the goal you meant.",
+      "takeaway": "Ask for evidence, not claims. Make the agent produce the actual artifact, the passing test, the diff, the file, the citation, before it can say it's done. Check the proof, not the promise.",
       "source": { "title": "Specification gaming: the flip side of AI ingenuity", "author": "DeepMind, 2020", "url": "https://deepmind.google/discover/blog/specification-gaming-the-flip-side-of-ai-ingenuity/" }
     },
     {
       "number": 5, "name": "Design for the Worst Case", "category": "context-reliability",
       "tagline": "Plan around the ceiling, not the average.",
-      "principle": "When a system says 'up to 24 hours', 'may retry', or 'no guaranteed latency', those bounds are the numbers that matter. Designing around the typical case works right up until the tail event — which is precisely when failure is most expensive. Failures aren't edge cases; at scale they're the steady state.",
-      "takeaway": "Whenever you're handed a maximum or a 'may', do the math against the ceiling. Size timeouts, retry budgets, and SLAs for the worst plausible run, not the one you usually see.",
+      "principle": "When a system says 'up to 24 hours', 'may retry', or 'no guaranteed latency', those limits are the numbers that matter. Designing for the typical case works right up until the rare event, which is exactly when failure costs the most. At scale, those failures aren't edge cases. They're the normal state of things.",
+      "takeaway": "Whenever you're handed a maximum or a 'may', do the math against the ceiling. Size your timeouts, retry budgets, and SLAs for the worst run you can reasonably expect, not the one you usually see.",
       "source": { "title": "10 Lessons from 10 Years of Amazon Web Services", "author": "Werner Vogels, 2016", "url": "https://www.allthingsdistributed.com/2016/03/10-lessons-from-10-years-of-aws.html" }
     },
 
     {
       "number": 6, "name": "Think Before You Touch", "category": "reasoning-planning",
       "tagline": "Spend reasoning tokens before you spend actions.",
-      "principle": "Prompting a model to reason in steps before answering measurably improves results — and for an agent the asymmetry is brutal: a reasoning trace is cheap and reversible, but an executed action (a sent email, a dropped table, a charged card) is not. Letting the model lay out its plan in tokens before it commits is the cheapest insurance you can buy.",
-      "takeaway": "Force an explicit reasoning or plan step before any tool call with side effects. Burned tokens are far cheaper than a wrong action.",
+      "principle": "Asking a model to reason step by step before answering measurably improves results, and for an agent the stakes are lopsided. A reasoning trace is cheap and easy to undo. An executed action, a sent email, a dropped table, a charged card, is not. Letting the model lay out its plan in tokens before it commits is the cheapest insurance you can buy.",
+      "takeaway": "Force an explicit reasoning or plan step before any tool call that has side effects. Burned tokens are far cheaper than a wrong action.",
       "source": { "title": "Chain-of-Thought Prompting Elicits Reasoning in LLMs", "author": "Wei et al., 2022", "url": "https://arxiv.org/abs/2201.11903" }
     },
     {
       "number": 7, "name": "Don't Bet on One Chain", "category": "reasoning-planning",
       "tagline": "Sample many reasoning paths and let them vote.",
-      "principle": "A single greedy chain of thought is fragile, but sampling several independent reasoning paths and taking the majority answer yields large, consistent gains. Correct reasoning tends to converge; mistakes scatter. Agreement across independently-generated plans is a real signal you can trust before acting on something consequential.",
-      "takeaway": "For high-stakes decisions, generate the plan or answer several times and act on the consensus — not on the first chain you happened to get.",
+      "principle": "A single greedy chain of thought is fragile. Sample several independent reasoning paths and take the majority answer, and you get large, consistent gains. Correct reasoning tends to converge while mistakes scatter, so agreement across independently generated plans is a real signal worth trusting before you act on something that matters.",
+      "takeaway": "For high-stakes decisions, generate the plan or answer a few times and act on the consensus, not on the first chain you happened to get.",
       "source": { "title": "Self-Consistency Improves Chain of Thought Reasoning", "author": "Wang et al., 2022", "url": "https://arxiv.org/abs/2203.11171" }
     },
     {
       "number": 8, "name": "Branch When the First Step Matters", "category": "reasoning-planning",
       "tagline": "For decisions you can't take back, explore before you commit.",
-      "principle": "Tree-of-Thoughts generalizes linear reasoning into a search: generate several candidate thoughts, self-evaluate, look ahead, and backtrack instead of being trapped left-to-right. This matters most where an early decision is pivotal — exactly the situations where an agent's first irreversible action determines everything downstream. Cheap, recoverable steps don't need it; pivotal ones do.",
-      "takeaway": "When an early action is high-leverage or irreversible, have the agent generate and score several candidate plans before picking one — don't commit to the first path.",
+      "principle": "Tree-of-Thoughts turns linear reasoning into a search: generate several candidate thoughts, judge them, look ahead, and backtrack instead of being stuck going left to right. It matters most when an early choice is pivotal, which is exactly the spot where an agent's first irreversible action sets up everything downstream. Cheap, recoverable steps don't need it. Pivotal ones do.",
+      "takeaway": "When an early action carries a lot of weight or can't be undone, have the agent generate and score a few candidate plans before it picks one. Don't let it commit to the first path.",
       "source": { "title": "Tree of Thoughts: Deliberate Problem Solving with LLMs", "author": "Yao et al., 2023", "url": "https://arxiv.org/abs/2305.10601" }
     },
     {
       "number": 9, "name": "Stop Tuning, Start Scaling", "category": "reasoning-planning",
       "tagline": "Build scaffolding you would gladly delete.",
-      "principle": "The Bitter Lesson is not a ban on structure. It is a warning against hand-coded cleverness that becomes a ceiling. Use code for guarantees and thin scaffolds for today's weak spots, but keep asking whether a simpler model-driven baseline now works better.",
-      "takeaway": "Prefer the thinnest scaffold that works. Keep deterministic boundaries where they protect guarantees, and delete bespoke prompt chains or heuristics once the model no longer needs them.",
+      "principle": "The Bitter Lesson isn't a ban on structure. It's a warning against hand-coded cleverness that quietly becomes a ceiling. Use code where you need guarantees and thin scaffolds for today's weak spots, but keep asking whether a simpler, more model-driven version now works better.",
+      "takeaway": "Prefer the thinnest scaffold that works. Keep deterministic boundaries where they protect a guarantee, and delete your bespoke prompt chains or heuristics once the model no longer needs them.",
       "source": { "title": "The Bitter Lesson", "author": "Richard Sutton, 2019", "url": "http://www.incompleteideas.net/IncIdeas/BitterLesson.html" }
     },
     {
       "number": 10, "name": "More Thinking Can Hurt", "category": "reasoning-planning",
-      "tagline": "Extra reasoning past the answer is wasted — or a wrong turn.",
-      "principle": "More reasoning is not automatically better. On easy tasks it can burn latency and money for no gain; on some tasks the model finds the answer early and then talks itself away from it. Reasoning depth has a useful range, not an infinite upside.",
-      "takeaway": "Match the thinking budget to the task. Skip or cap extended reasoning on simple paths, and use external checks rather than endless deliberation on hard ones.",
+      "tagline": "Extra reasoning past the answer is wasted, or a wrong turn.",
+      "principle": "More reasoning isn't automatically better. On easy tasks it just burns latency and money for nothing. On some tasks the model finds the answer early and then talks itself out of it. Reasoning depth has a useful range, not an endless upside.",
+      "takeaway": "Match the thinking budget to the task. Cap or skip extended reasoning on simple paths, and lean on external checks rather than endless deliberation on the hard ones.",
       "source": { "title": "Do NOT Think That Much for 2+3=? On the Overthinking of o1-Like LLMs", "author": "Chen et al., 2024", "url": "https://arxiv.org/abs/2412.21187" }
     },
 
     {
       "number": 11, "name": "Retrieval Is the Ceiling", "category": "retrieval-memory",
       "tagline": "Missing evidence becomes a missing answer.",
-      "principle": "For facts the model does not already know reliably, the answer can only be as good as the evidence retrieved. If the right passage never reaches context, the generator fills the gap from memory and guesswork. Retrieval quality sets the practical ceiling for grounded answers.",
-      "takeaway": "Measure retrieval before touching prompts or models. If the answer-bearing passage is absent, fix recall, chunking, ranking, or query expansion first.",
+      "principle": "For facts the model doesn't already know well, the answer can only be as good as the evidence you retrieve. If the right passage never reaches the context, the generator fills the gap from memory and guesswork. Retrieval quality sets the practical ceiling for any grounded answer.",
+      "takeaway": "Measure retrieval before you touch prompts or models. If the passage that holds the answer isn't showing up, fix recall, chunking, ranking, or query expansion first.",
       "source": { "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks", "author": "Lewis et al., 2020", "url": "https://arxiv.org/abs/2005.11401" }
     },
     {
       "number": 12, "name": "Grounding Is Not a Guarantee", "category": "retrieval-memory",
-      "tagline": "Retrieval reduces hallucination; it does not eliminate it.",
-      "principle": "Vendors marketed RAG legal tools as 'hallucination-free', yet a Stanford audit found they still hallucinated 17–33% of the time. Handing the model a source doesn't force it to use that source faithfully — it can misread, over-generalize, or cite a real document for a claim the document never makes. Grounding lowers the floor on errors; it never reaches zero.",
-      "takeaway": "Treat 'we use RAG' as risk reduction, not a safety claim. Verify that generated claims actually trace to the retrieved passage, and never advertise grounded systems as hallucination-proof.",
+      "tagline": "Retrieval reduces hallucination. It doesn't eliminate it.",
+      "principle": "Vendors marketed RAG legal tools as 'hallucination-free', but a Stanford audit found they still made things up 17 to 33% of the time. Handing the model a source doesn't force it to use that source faithfully. It can misread it, over-generalize, or cite a real document for a claim the document never makes. Grounding lowers the error rate. It never gets it to zero.",
+      "takeaway": "Treat 'we use RAG' as risk reduction, not a safety guarantee. Check that generated claims actually trace back to the retrieved passage, and never sell a grounded system as hallucination-proof.",
       "source": { "title": "Assessing the Reliability of Leading AI Legal Research Tools", "author": "Magesh et al. (Stanford), 2024", "url": "https://arxiv.org/abs/2405.20362" }
     },
     {
       "number": 13, "name": "Relevant Beats Plenty", "category": "retrieval-memory",
       "tagline": "Near-misses poison context worse than random noise.",
-      "principle": "Counterintuitively, documents that are topically related but don't answer the question are more harmful than clearly irrelevant ones — they look plausible and pull the generator toward wrong-but-adjacent answers. Stuffing more 'kind of relevant' chunks into context degrades accuracy rather than improving coverage. Precision at the top beats breadth.",
-      "takeaway": "Optimize for precision, not recall-at-any-cost. Aggressively rerank and filter out distractor chunks — a smaller, sharper context beats a padded one.",
+      "principle": "It's backwards from what you'd expect: documents that are on-topic but don't answer the question hurt more than clearly irrelevant ones, because they look plausible and pull the generator toward answers that are wrong but adjacent. Stuffing more 'kind of relevant' chunks into the context lowers accuracy instead of improving coverage. Precision at the top beats breadth.",
+      "takeaway": "Optimize for precision, not recall at any cost. Rerank hard and filter out the distractor chunks. A smaller, sharper context beats a padded one.",
       "source": { "title": "The Power of Noise: Redefining Retrieval for RAG Systems", "author": "Cuconasu et al., 2024", "url": "https://arxiv.org/abs/2401.14887" }
     },
     {
       "number": 14, "name": "Keyword Still Carries Weight", "category": "retrieval-memory",
       "tagline": "Pure semantic search quietly loses to a 40-year-old baseline.",
-      "principle": "Dense embedding retrievers dominate in-domain but frequently underperform BM25 once you leave the training distribution — exact-match terms, product codes, names, and rare jargon are where embeddings blur and lexical search shines. In-domain accuracy doesn't predict out-of-domain generalization. Combining the two is how strong systems cut retrieval failures dramatically.",
-      "takeaway": "Default to hybrid (semantic + keyword/BM25) search, not embeddings alone — especially for jargon, IDs, and out-of-domain queries. Add a reranker on top to compound the gains.",
+      "principle": "Dense embedding retrievers win in-domain but often lose to BM25 once you step outside the training distribution. Exact-match terms, product codes, names, and rare jargon are where embeddings blur and plain keyword search shines. In-domain accuracy doesn't predict how well a retriever generalizes, and combining the two is how strong systems cut their retrieval failures dramatically.",
+      "takeaway": "Default to hybrid search, semantic plus keyword (BM25), instead of embeddings alone, especially for jargon, IDs, and out-of-domain queries. Add a reranker on top to compound the gains.",
       "source": { "title": "BEIR: A Heterogeneous Benchmark for Zero-shot IR Evaluation", "author": "Thakur et al., 2021", "url": "https://arxiv.org/abs/2104.08663" }
     },
     {
       "number": 15, "name": "Memory Is a System, Not a Window", "category": "retrieval-memory",
       "tagline": "Give the agent a hierarchy, not just a bigger prompt.",
-      "principle": "Treat the context window like a computer's RAM: an agent should actively page information between a small in-context working set and large external storage, deciding what to keep, evict, and recall. Cramming everything into one flat window conflates working memory with long-term storage and hits hard limits. Durable agent memory needs explicit tiers and self-managed retrieval.",
-      "takeaway": "Architect memory in tiers — working context, recallable summaries, external stores — with explicit policies for what gets promoted or evicted, rather than relying on context length.",
+      "principle": "Think of the context window like a computer's RAM. The agent should actively move information between a small in-context working set and large external storage, deciding what to keep, what to evict, and what to recall. Cramming everything into one flat window mixes up working memory with long-term storage and hits hard limits fast. Durable memory needs explicit tiers and self-managed retrieval.",
+      "takeaway": "Build memory in tiers: working context, recallable summaries, and external stores, each with clear rules for what gets promoted or evicted. Don't lean on raw context length to do the job.",
       "source": { "title": "MemGPT: Towards LLMs as Operating Systems", "author": "Packer et al., 2023", "url": "https://arxiv.org/abs/2310.08560" }
     },
 
     {
       "number": 16, "name": "Narrow Beats General", "category": "scope-design",
       "tagline": "Three sharp tools beat thirty dull ones.",
-      "principle": "A scoped agent with a handful of well-chosen tools outperforms a generalist drowning in options. Every extra tool is another way to choose wrong, another branch to test, another failure to debug. Capability surface is liability surface — breadth you don't need is just risk you took on.",
-      "takeaway": "Start narrow. Add a tool only when a real task demands it, not because it might be handy someday. When selection gets unreliable, the first move is usually fewer tools, not better instructions.",
+      "principle": "A scoped agent with a handful of well-chosen tools beats a generalist drowning in options. Every extra tool is another way to choose wrong, another branch to test, another failure to debug. More capability surface means more liability surface, so breadth you don't need is just risk you signed up for.",
+      "takeaway": "Start narrow. Add a tool only when a real task needs it, not because it might come in handy someday. When tool selection gets flaky, the fix is usually fewer tools, not better instructions.",
       "source": { "title": "Building Effective Agents", "author": "Anthropic", "url": "https://www.anthropic.com/research/building-effective-agents" }
     },
     {
       "number": 17, "name": "Determinism at the Edges", "category": "scope-design",
       "tagline": "Model in the middle, code at the boundaries.",
-      "principle": "Validation, schema enforcement, retries, routing, and access control are not the model's job — they're code's job. The model is for judgment under ambiguity; deterministic code is for everything that must be correct every single time. Asking a probabilistic system to guarantee a contract is asking for the 0.1% that ruins you.",
-      "takeaway": "Wrap the model in code you can trust. Let it reason in the soft middle, but put a deterministic shell around the inputs and outputs so the hard guarantees never ride on a sampling roll.",
+      "principle": "Validation, schema enforcement, retries, routing, and access control aren't the model's job. They're code's job. The model is for judgment under ambiguity, and deterministic code is for everything that has to be correct every single time. Asking a probabilistic system to guarantee a contract is asking for the 0.1% that ruins you.",
+      "takeaway": "Wrap the model in code you can trust. Let it reason in the soft middle, but put a deterministic shell around the inputs and outputs so your hard guarantees never ride on a sampling roll.",
       "source": { "title": "Building Effective Agents", "author": "Anthropic", "url": "https://www.anthropic.com/research/building-effective-agents" }
     },
     {
       "number": 18, "name": "Observability Precedes Autonomy", "category": "scope-design",
       "tagline": "You can't grant autonomy you can't trace.",
-      "principle": "If you can't see what the agent did and why — every decision, tool call, and input — you can't safely let it act on its own. You're not trusting it; you're hoping. Autonomy without a trace is just an outage you haven't found yet, and when it breaks you'll have no way to learn why.",
+      "principle": "If you can't see what the agent did and why, every decision, tool call, and input, then you can't safely let it act on its own. You're not trusting it, you're hoping. Autonomy without a trace is an outage you haven't found yet, and when it breaks you'll have no way to learn why.",
       "takeaway": "Build the trace before you grant the freedom. Make every step inspectable after the fact, then widen autonomy only as far as your visibility actually reaches.",
       "source": { "title": "What We Learned from a Year of Building with LLMs", "author": "Yan, Husain, et al., 2024", "url": "https://www.oreilly.com/radar/what-we-learned-from-a-year-of-building-with-llms-part-i/" }
     },
     {
       "number": 19, "name": "Decompose Before You Scale", "category": "scope-design",
-      "tagline": "When it's unreliable, split it — don't supersize it.",
-      "principle": "When output is inconsistent, the instinct is to throw more at the same shape: a bigger model, a longer context, more tokens. That rarely fixes a structural problem — it just dilutes attention further. Splitting the task into focused, single-purpose passes almost always beats making one overloaded pass smarter.",
-      "takeaway": "Break the work into stages that each do one thing well — analyze per-item, then reconcile across items. A focused pass beats a heroic pass trying to do everything at once.",
+      "tagline": "When it's unreliable, split it. Don't supersize it.",
+      "principle": "When output is inconsistent, the instinct is to throw more at the same shape: a bigger model, a longer context, more tokens. That rarely fixes a structural problem. It just spreads attention thinner. Splitting the task into focused, single-purpose passes almost always beats trying to make one overloaded pass smarter.",
+      "takeaway": "Break the work into stages that each do one thing well. Analyze per item, then reconcile across items. A focused pass beats a heroic one trying to do everything at once.",
       "source": { "title": "Least-to-Most Prompting Enables Complex Reasoning", "author": "Zhou et al., 2022", "url": "https://arxiv.org/abs/2205.10625" }
     },
     {
       "number": 20, "name": "The Cheapest Fix First", "category": "scope-design",
       "tagline": "Reach for the prompt before the platform.",
-      "principle": "When something misbehaves, the cheapest fix that addresses the root cause usually wins — and it's usually clearer instructions, a better tool description, or a concrete example, not a new classifier, preprocessing layer, or pipeline. Infrastructure feels like progress but often just wraps an unsolved prompt in more surface area.",
-      "takeaway": "Exhaust the prompt-level fixes before you build systems. Only add infrastructure once you've proven that words, examples, and scoping genuinely can't close the gap.",
+      "principle": "When something misbehaves, the cheapest fix that addresses the root cause usually wins, and that's usually clearer instructions, a better tool description, or a concrete example, not a new classifier, preprocessing layer, or pipeline. Infrastructure feels like progress, but it often just wraps an unsolved prompt in more surface area.",
+      "takeaway": "Exhaust the prompt-level fixes before you build systems. Add infrastructure only once you've proven that words, examples, and scoping genuinely can't close the gap.",
       "source": { "title": "Building Effective Agents", "author": "Anthropic", "url": "https://www.anthropic.com/research/building-effective-agents" }
     },
 
     {
       "number": 21, "name": "The Tool Description Is the Prompt", "category": "instruction-output",
       "tagline": "An agent is only as capable as its tools are legible.",
-      "principle": "The agent decides what to call based on how a tool reads, not on what it actually does. A vague description — 'searches the database' — gets passed over for a tool the model understands better, even a worse one. Thin tool descriptions cause more failures than thin instructions ever do.",
-      "takeaway": "Write tool descriptions like you're onboarding a sharp new engineer: what it does, when to use it (and when not to), what it expects, what it returns. The description is the interface the model actually reasons over.",
+      "principle": "The agent decides what to call based on how a tool reads, not on what it actually does. A vague description like 'searches the database' gets skipped in favor of a tool the model understands better, even a worse one. Thin tool descriptions cause more failures than thin instructions ever do.",
+      "takeaway": "Write tool descriptions like you're onboarding a sharp new engineer: what it does, when to use it and when not to, what it expects, and what it returns. That description is the interface the model actually reasons over.",
       "source": { "title": "Writing Tools for Agents", "author": "Anthropic", "url": "https://www.anthropic.com/engineering/writing-tools-for-agents" }
     },
     {
       "number": 22, "name": "Show, Don't Tell", "category": "instruction-output",
       "tagline": "When prose fails, stop writing prose.",
-      "principle": "If an instruction has produced the wrong result twice, writing it a third time — more precisely — rarely helps, because prose is always interpretable. Two or three concrete input/output examples eliminate the ambiguity that no amount of careful description can. Examples demonstrate the rule; prose only describes it.",
-      "takeaway": "When results are inconsistent, switch from describing to demonstrating. Show worked examples — especially the edge cases and the 'leave it blank' cases — and let the model generalize from them.",
+      "principle": "If an instruction has produced the wrong result twice, writing it a third time more carefully rarely helps, because prose is always open to interpretation. Two or three concrete input and output examples kill the ambiguity that no amount of careful description can. Examples show the rule. Prose only describes it.",
+      "takeaway": "When results are inconsistent, switch from describing to demonstrating. Show worked examples, especially the edge cases and the 'leave it blank' cases, and let the model generalize from them.",
       "source": { "title": "Multishot Prompting (Anthropic Docs)", "author": "Anthropic", "url": "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/multishot-prompting" }
     },
     {
       "number": 23, "name": "Confidence Is Not Calibrated", "category": "instruction-output",
       "tagline": "A model's certainty is not evidence.",
-      "principle": "Models are routinely confident and wrong, and unconfident and right. Routing decisions on self-reported confidence inherits that miscalibration. 'Only flag high-confidence issues' or 'be conservative' just moves the noise around — it doesn't reduce it, because the confidence itself is the unreliable signal.",
-      "takeaway": "Replace confidence thresholds and vague hedges with explicit, categorical criteria: what specifically counts as in, what specifically counts as out, with an example of each. Specificity beats self-assessed certainty every time.",
+      "principle": "Models are routinely confident and wrong, and unconfident and right. Routing decisions on self-reported confidence inherits that miscalibration. 'Only flag high-confidence issues' or 'be conservative' just moves the noise around. It doesn't reduce it, because the confidence itself is the unreliable signal.",
+      "takeaway": "Replace confidence thresholds and vague hedges with explicit, categorical criteria: what counts as in, what counts as out, with an example of each. Specific rules beat self-assessed certainty every time.",
       "source": { "title": "Language Models (Mostly) Know What They Know", "author": "Kadavath et al., 2022", "url": "https://arxiv.org/abs/2207.05221" }
     },
     {
       "number": 24, "name": "Surface Ambiguity, Don't Resolve It", "category": "instruction-output",
       "tagline": "When the data is unclear, don't guess confidently.",
-      "principle": "Faced with two plausible matches, conflicting sources, or a missing field, an agent's instinct is to pick the 'most likely' option and move on — a confident choice that silently buries the doubt. When the stakes touch identity, money, or anything irreversible, a quiet wrong guess is far worse than an honest 'this is unclear'.",
-      "takeaway": "Make the agent escalate ambiguity instead of papering over it: ask for another identifier, preserve both conflicting values with their sources, flag the conflict for a human. Surface the doubt to whoever can actually resolve it.",
+      "principle": "Faced with two plausible matches, conflicting sources, or a missing field, an agent's instinct is to pick the most likely option and move on, a confident choice that quietly buries the doubt. When the stakes touch identity, money, or anything you can't undo, a quiet wrong guess is far worse than an honest 'this is unclear'.",
+      "takeaway": "Make the agent escalate ambiguity instead of papering over it: ask for another identifier, keep both conflicting values with their sources, or flag the conflict for a human. Push the doubt to whoever can actually resolve it.",
       "source": { "title": "Building Effective Agents", "author": "Anthropic", "url": "https://www.anthropic.com/research/building-effective-agents" }
     },
     {
       "number": 25, "name": "Averages Lie", "category": "evaluation-measurement",
       "tagline": "97% overall can hide a 60% segment.",
-      "principle": "An aggregate metric is a blended story that smooths over exactly the failures you most need to see. A system at 97% overall can be 99% on easy cases and 60% on the rare, hard segment where errors actually cluster. Trust the headline and you'll automate straight into the cracks it's hiding.",
-      "takeaway": "Slice before you trust. Break performance down by type, segment, and field, and require every slice to clear the bar before you act on the average. Sample deliberately for the rare cases, not just randomly.",
+      "principle": "An aggregate metric is a blended story that smooths over exactly the failures you most need to see. A system at 97% overall can be 99% on the easy cases and 60% on the rare, hard segment where the errors actually cluster. Trust the headline number and you'll automate straight into the cracks it's hiding.",
+      "takeaway": "Slice before you trust. Break performance down by type, segment, and field, and make every slice clear the bar before you act on the average. Sample deliberately for the rare cases, not just at random.",
       "source": { "title": "Your AI Product Needs Evals", "author": "Hamel Husain, 2024", "url": "https://hamel.dev/blog/posts/evals/" }
     },
 
     {
       "number": 26, "name": "Vibes Don't Scale", "category": "evaluation-measurement",
       "tagline": "Eyeballing outputs feels like progress until you can't tell if a change helped.",
-      "principle": "The common root cause of failed LLM products is the absence of robust evals: teams ship on vibe checks, iterate blindly, and can't measure whether a prompt change improved anything. Manual spot-checking doesn't survive scale or a second engineer. Evals are to AI products what unit tests are to software — the up-front cost that makes every later change cheap and safe.",
+      "principle": "The common root cause of failed LLM products is the absence of solid evals. Teams ship on vibe checks, iterate blind, and can't tell whether a prompt change improved anything. Manual spot-checking doesn't survive scale or a second engineer. Evals are to AI products what unit tests are to software: the up-front cost that makes every later change cheap and safe.",
       "takeaway": "Build a small eval harness before you scale. Turn every 'that looks wrong' moment into a permanent, re-runnable test case.",
       "source": { "title": "Your AI Product Needs Evals", "author": "Hamel Husain, 2024", "url": "https://hamel.dev/blog/posts/evals/" }
     },
     {
       "number": 27, "name": "Look at Your Data", "category": "evaluation-measurement",
       "tagline": "The highest-ROI activity in AI is the one teams skip first.",
-      "principle": "Error analysis — manually reading your app's actual traces to find where it fails — is the single most valuable activity in AI development, yet teams skip it for dashboards and vanity metrics that improve while users still struggle. You cannot write a good eval for a failure mode you've never seen, and you only see failure modes by reading transcripts.",
-      "takeaway": "Before buying an eval platform, hand-read 50–100 real traces and cluster the failures. Let those clusters define what you measure.",
+      "principle": "Error analysis, reading your app's actual traces by hand to find where it fails, is the single most valuable thing you can do when building with AI, yet teams skip it for dashboards and vanity metrics that climb while users still struggle. You can't write a good eval for a failure mode you've never seen, and you only see failure modes by reading transcripts.",
+      "takeaway": "Before you buy an eval platform, hand-read 50 to 100 real traces and group the failures. Let those groups decide what you measure.",
       "source": { "title": "A Field Guide to Rapidly Improving AI Products", "author": "Hamel Husain, 2025", "url": "https://hamel.dev/blog/posts/field-guide/" }
     },
     {
       "number": 28, "name": "The Judge Is Biased", "category": "evaluation-measurement",
       "tagline": "An LLM grader reacts to length and position, not just substance.",
-      "principle": "An LLM judge can match human preferences over 80% of the time — but only after accounting for systematic biases: position bias (favoring the first answer shown), verbosity bias (favoring longer answers regardless of quality), and self-enhancement bias (favoring its own outputs). It's a useful instrument, but an uncalibrated one that grades surface features as readily as substance.",
-      "takeaway": "Swap answer positions and average both orderings, control for length, and never let a model be the sole judge of its own family's output.",
+      "principle": "An LLM judge can match human preferences over 80% of the time, but only after you account for its systematic biases: position bias (favoring the first answer shown), verbosity bias (favoring longer answers regardless of quality), and self-enhancement bias (favoring its own outputs). It's a useful instrument, but an uncalibrated one that grades surface features as readily as substance.",
+      "takeaway": "Swap answer positions and average both orderings, control for length, and never let a model be the only judge of its own family's output.",
       "source": { "title": "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena", "author": "Zheng et al., 2023", "url": "https://arxiv.org/abs/2306.05685" }
     },
     {
       "number": 29, "name": "Goodhart's Trap", "category": "evaluation-measurement",
       "tagline": "When your eval becomes the goal, it stops measuring what you cared about.",
-      "principle": "When a measure becomes a target, it ceases to be a good measure. Optimize hard against any single metric and the agent learns to game its surface form — padding answers to please a verbosity-biased judge, or overfitting a fixed eval set — while the underlying capability stagnates or regresses. The number goes up; the thing you cared about doesn't.",
-      "takeaway": "Treat any metric you actively optimize as suspect. Keep fresh held-out cases, cross-check against different signals, and re-validate gains on examples the optimizer never saw.",
+      "principle": "When a measure becomes a target, it stops being a good measure. Optimize hard against any single metric and the agent learns to game its surface form, padding answers to please a verbosity-biased judge or overfitting a fixed eval set, while the underlying capability stalls or even slips. The number goes up. The thing you cared about doesn't.",
+      "takeaway": "Treat any metric you actively optimize as suspect. Keep fresh held-out cases, cross-check against different signals, and re-validate your gains on examples the optimizer never saw.",
       "source": { "title": "'Improving Ratings': Audit in the British University System", "author": "Marilyn Strathern, 1997", "url": "https://www.damtp.cam.ac.uk/user/mem2//papers/LHCE/goodhart.html" }
     },
     {
       "number": 30, "name": "Regress or Repeat", "category": "evaluation-measurement",
       "tagline": "Every fixed bug is a future regression unless it becomes a test.",
-      "principle": "LLM systems are non-deterministic and globally coupled — a prompt tweak to fix one case silently breaks three others. Rerunning real production examples against a new prompt is the only way to know you didn't break what already worked. Without a regression suite you're trapped in a whack-a-mole loop, re-discovering the same failures release after release.",
-      "takeaway": "Every failure you fix becomes a permanent case in your regression eval. Run the full suite on every prompt or model change before shipping.",
+      "principle": "LLM systems are non-deterministic and globally coupled, so a prompt tweak that fixes one case can quietly break three others. Rerunning real production examples against a new prompt is the only way to know you didn't break what already worked. Without a regression suite you're stuck in a whack-a-mole loop, rediscovering the same failures release after release.",
+      "takeaway": "Every failure you fix becomes a permanent case in your regression eval. Run the full suite on every prompt or model change before you ship.",
       "source": { "title": "What We Learned from a Year of Building with LLMs", "author": "Yan, Husain, et al., 2024", "url": "https://www.oreilly.com/radar/what-we-learned-from-a-year-of-building-with-llms-part-i/" }
     },
 
     {
       "number": 31, "name": "The Lethal Trifecta", "category": "safety-security",
-      "tagline": "Private data, untrusted content, and an exfiltration path — pick at most two.",
-      "principle": "An agent becomes exploitable the moment it combines three capabilities: access to private data, exposure to untrusted content, and the ability to communicate externally. Any single poisoned input in that pipeline can steer it into stealing your data — no code vulnerability required. Guardrail prose is not enough, because the model cannot be the security boundary.",
-      "takeaway": "Audit every agent for all three capabilities at once. If a workflow has all three, break the chain — remove a tool, isolate the data, or insert a human gate.",
+      "tagline": "Private data, untrusted content, and a way out. Pick at most two.",
+      "principle": "An agent becomes exploitable the moment it combines three things: access to private data, exposure to untrusted content, and the ability to send data out. Any one poisoned input in that pipeline can steer it into leaking your data, with no code vulnerability required. Guardrail prose isn't enough, because the model can't be the security boundary.",
+      "takeaway": "Audit every agent for all three capabilities at once. If a workflow has all three, break the chain: remove a tool, isolate the data, or put a human in the gate.",
       "source": { "title": "The lethal trifecta for AI agents", "author": "Simon Willison, 2025", "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/" }
     },
     {
       "number": 32, "name": "Tokens Don't Wear Badges", "category": "safety-security",
       "tagline": "Untrusted text can sound like instructions.",
-      "principle": "Prompt injection is an architectural risk, not a typo you patch once. Models do not reliably separate trusted intent from untrusted content, and prose guardrails fail under pressure. New instruction-hierarchy and isolation patterns help, but the safe design assumption is that untrusted content may speak with an attacker's intent.",
-      "takeaway": "Do not rely on 'ignore previous instructions' guardrails as a security boundary. Separate trust zones, constrain reachable actions after untrusted input, and enforce authority in code.",
+      "principle": "Prompt injection is an architectural risk, not a typo you patch once. Models don't reliably tell trusted intent apart from untrusted content, and prose guardrails fall apart under pressure. Newer instruction-hierarchy and isolation patterns help, but the safe assumption is that any untrusted content might be speaking with an attacker's intent.",
+      "takeaway": "Don't rely on 'ignore previous instructions' guardrails as a security boundary. Separate trust zones, limit what actions are reachable after untrusted input, and enforce authority in code.",
       "source": { "title": "LLM01:2025 Prompt Injection", "author": "OWASP Gen AI Security Project", "url": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/" }
     },
     {
       "number": 33, "name": "The Confused Deputy", "category": "safety-security",
       "tagline": "An agent with your privileges will wield them on an attacker's behalf.",
-      "principle": "A confused deputy is a privileged program tricked by a caller into misusing its authority — not malicious, just confused about whose intent it's serving. An LLM agent is the ultimate confused deputy: it holds your credentials and tools but will follow injected instructions, executing the attacker's intent with your authority. Ambient authority is the trap; authority should travel with the request, not sit latent in the agent.",
-      "takeaway": "Scope every tool's authority to the specific task and caller. Avoid broad ambient credentials the agent can be tricked into abusing; prefer read-only by default.",
+      "principle": "A confused deputy is a privileged program that a caller tricks into misusing its authority. It isn't malicious, just confused about whose intent it's serving. An LLM agent is the ultimate confused deputy: it holds your credentials and tools, but it'll follow injected instructions and carry out an attacker's intent with your authority. The trap is ambient authority. Authority should travel with the request, not sit waiting inside the agent.",
+      "takeaway": "Scope every tool's authority to the specific task and caller. Avoid broad ambient credentials the agent can be tricked into abusing, and prefer read-only by default.",
       "source": { "title": "The Confused Deputy", "author": "Norm Hardy, 1988", "url": "https://dl.acm.org/doi/10.1145/54289.871709" }
     },
     {
       "number": 34, "name": "Quarantine Untrusted Tokens", "category": "safety-security",
       "tagline": "Let the privileged planner orchestrate, but never let it read the poison.",
-      "principle": "The Dual-LLM pattern splits the agent in two: a privileged model that holds tools and plans actions but never sees untrusted content, and a quarantined model that processes tainted data but has no tools and returns only opaque variables. The privileged model orchestrates the quarantined one without ever ingesting the bytes that could carry an injection. Security comes from the separation.",
+      "principle": "The Dual-LLM pattern splits the agent in two. A privileged model holds the tools and plans actions but never sees untrusted content. A quarantined model processes the tainted data but has no tools and returns only opaque variables. The privileged model directs the quarantined one without ever ingesting the bytes that could carry an injection. The separation is what makes it safe.",
       "takeaway": "Isolate the component that reads untrusted content from the component that can act. Pass references and structured results between them, never raw tainted text.",
       "source": { "title": "Design Patterns for Securing LLM Agents against Prompt Injection", "author": "Simon Willison, 2025", "url": "https://simonwillison.net/2025/Jun/13/prompt-injection-design-patterns/" }
     },
     {
       "number": 35, "name": "Sandbox the Blast Radius", "category": "safety-security",
-      "tagline": "Assume the agent gets compromised — then contain what it can reach.",
-      "principle": "Defense in depth means planning for the injection that succeeds. Containing an agent with filesystem isolation (scoping access to specific directories) and network isolation (blocking exfiltration) means a compromised agent can't reach beyond its sandbox. Real incidents — CI agents that could leak secrets via untrusted content — show why the second layer matters when the first fails.",
-      "takeaway": "Run agent tool execution in an isolated environment with constrained filesystem and network access, so a successful injection is contained instead of catastrophic.",
+      "tagline": "Assume the agent gets compromised, then contain what it can reach.",
+      "principle": "Defense in depth means planning for the injection that succeeds. Box the agent in with filesystem isolation (access scoped to specific directories) and network isolation (exfiltration blocked), and a compromised agent can't reach past its sandbox. Real incidents, like CI agents that could leak secrets through untrusted content, show why that second layer matters when the first one fails.",
+      "takeaway": "Run agent tool execution in an isolated environment with constrained filesystem and network access, so a successful injection stays contained instead of turning catastrophic.",
       "source": { "title": "OWASP Top 10 for LLM Applications", "author": "OWASP Gen AI Security Project, 2025", "url": "https://genai.owasp.org/llm-top-10/" }
     },
 
     {
       "number": 36, "name": "Don't Build an Agent When a Workflow Will Do", "category": "architecture-operations",
       "tagline": "Agents buy flexibility with latency, cost, and unpredictability.",
-      "principle": "The simplest solution that works is usually the right one — and sometimes that means not building an agentic system at all. Agents that dynamically direct their own tool use trade latency, cost, and predictability for autonomy; a workflow with predefined code paths is cheaper and more reliable for well-defined tasks. Reach for an agent only when the problem genuinely needs model-driven decisions at runtime.",
-      "takeaway": "Default to a deterministic workflow. Promote to an agent only when the task's branching is too open-ended to script.",
+      "principle": "The simplest solution that works is usually the right one, and sometimes that means not building an agentic system at all. Agents that direct their own tool use trade latency, cost, and predictability for autonomy, while a workflow with predefined code paths is cheaper and more reliable for well-defined tasks. Reach for an agent only when the problem genuinely needs the model making decisions at runtime.",
+      "takeaway": "Default to a deterministic workflow. Move up to an agent only when the branching is too open-ended to script.",
       "source": { "title": "Building Effective Agents", "author": "Anthropic", "url": "https://www.anthropic.com/research/building-effective-agents" }
     },
     {
       "number": 37, "name": "Cascade Before You Escalate", "category": "architecture-operations",
-      "tagline": "Try the cheap model first; only the hard cases deserve the expensive one.",
-      "principle": "Most queries don't need your most powerful model. Routing requests through a cascade — a cheap model first, escalating to stronger models only when confidence is low — can match top-tier quality at a fraction of the cost. The price gap between models spans two orders of magnitude, so paying top dollar for every call is pure waste.",
-      "takeaway": "Build a cascade: answer with the cheapest model that clears your eval bar, and escalate only on low-confidence or failed cases.",
+      "tagline": "Try the cheap model first. Only the hard cases deserve the expensive one.",
+      "principle": "Most queries don't need your most powerful model. Routing requests through a cascade, a cheap model first and a stronger one only when confidence is low, can match top-tier quality at a fraction of the cost. The price gap between models spans two orders of magnitude, so paying top dollar for every call is pure waste.",
+      "takeaway": "Build a cascade: answer with the cheapest model that clears your eval bar, and escalate only on the low-confidence or failed cases.",
       "source": { "title": "FrugalGPT: Using LLMs While Reducing Cost and Improving Performance", "author": "Chen, Zaharia, Zou, 2023", "url": "https://arxiv.org/abs/2305.05176" }
     },
     {
       "number": 38, "name": "The Multi-Agent Tax", "category": "architecture-operations",
-      "tagline": "Every extra agent multiplies your token bill — make sure the task can pay it.",
-      "principle": "A multi-agent research system can burn roughly 15× the tokens of a single chat, and token usage alone can explain most of the performance variance. That means multi-agent only makes economic sense when the task's value is high and the work genuinely parallelizes. For most tightly-coupled work, the coordination overhead isn't worth it.",
-      "takeaway": "Reserve multi-agent architectures for high-value, heavily parallelizable tasks. For everything else the token tax outweighs the gains.",
+      "tagline": "Every extra agent multiplies your token bill, so make sure the task can pay it.",
+      "principle": "A multi-agent research system can burn roughly 15 times the tokens of a single chat, and token usage alone can explain most of the difference in performance. So multi-agent only makes economic sense when the task is high value and the work genuinely parallelizes. For most tightly coupled work, the coordination overhead isn't worth it.",
+      "takeaway": "Reserve multi-agent setups for high-value, heavily parallelizable tasks. For everything else, the token tax outweighs the gains.",
       "source": { "title": "How we built our multi-agent research system", "author": "Anthropic, 2025", "url": "https://www.anthropic.com/engineering/built-multi-agent-research-system" }
     },
     {
       "number": 39, "name": "Your Architecture Mirrors Your Org Chart", "category": "architecture-operations",
-      "tagline": "Ship a system shaped like your teams — so design the teams first.",
-      "principle": "Any system's structure ends up a copy of the communication structure of the organization that built it. Applied to AI: if three teams each own a model, you'll get three agents and a brittle seam between them — whether or not the problem wanted to be split that way. The agent boundaries you ship will trace your team boundaries unless you consciously fight it.",
-      "takeaway": "Before drawing agent or service boundaries, check whether they reflect the problem or just your org chart — and reorganize teams to match the architecture you actually want.",
+      "tagline": "You ship a system shaped like your teams, so design the teams first.",
+      "principle": "Any system's structure ends up mirroring the communication structure of the organization that built it. For AI, that means if three teams each own a model, you'll get three agents and a brittle seam between them, whether or not the problem wanted to be split that way. The agent boundaries you ship will trace your team boundaries unless you fight it on purpose.",
+      "takeaway": "Before you draw agent or service boundaries, check whether they reflect the problem or just your org chart, and reorganize the teams to match the architecture you actually want.",
       "source": { "title": "How Do Committees Invent? (Conway's Law)", "author": "Melvin Conway, 1968", "url": "https://www.melconway.com/Home/Conways_Law.html" }
     },
     {
       "number": 40, "name": "Retries Demand Idempotency", "category": "architecture-operations",
       "tagline": "If an action can run twice, a retry will eventually run it twice.",
-      "principle": "Agents retry — on timeouts, rate limits, transient errors — but a failed call that never returned may have already succeeded server-side. Without an idempotency key, the retry that 'fixes' a network blip silently double-charges the card, double-sends the email, or double-books the room. Safe retries require the server to dedupe.",
-      "takeaway": "Attach a client-generated idempotency key to every side-effecting tool call so the server can deduplicate retries. Never let an agent blindly retry a non-idempotent action.",
+      "principle": "Agents retry on timeouts, rate limits, and transient errors, but a failed call that never returned may have already succeeded on the server. Without an idempotency key, the retry that 'fixes' a network blip quietly double-charges the card, double-sends the email, or double-books the room. Safe retries depend on the server being able to dedupe.",
+      "takeaway": "Attach a client-generated idempotency key to every side-effecting tool call so the server can dedupe retries. Never let an agent blindly retry a non-idempotent action.",
       "source": { "title": "Making retries safe with idempotent APIs", "author": "AWS Builders' Library", "url": "https://aws.amazon.com/builders-library/making-retries-safe-with-idempotent-APIs/" }
     },
     {
       "number": 41, "name": "Trip the Breaker", "category": "architecture-operations",
       "tagline": "Stop calling the thing that's already failing.",
-      "principle": "A downstream model or tool that's timing out doesn't get healthier by being called more — it gets worse, while your agents pile up holding open connections and burning latency budget. A circuit breaker wraps the call so that once failures cross a threshold it trips: further calls fail fast instead of hanging, giving the dependency room to recover.",
-      "takeaway": "Wrap every external model and tool dependency in a circuit breaker that fails fast after a failure threshold, then probes for recovery — don't let a sick dependency drag the whole run down.",
+      "principle": "A downstream model or tool that's timing out doesn't get healthier by being called more. It gets worse, while your agents pile up holding open connections and burning their latency budget. A circuit breaker wraps the call so that once failures cross a threshold it trips, and further calls fail fast instead of hanging, which gives the dependency room to recover.",
+      "takeaway": "Wrap every external model and tool dependency in a circuit breaker that fails fast after a failure threshold, then probes for recovery. Don't let one sick dependency drag the whole run down.",
       "source": { "title": "CircuitBreaker", "author": "Martin Fowler (after Nygard, 'Release It!')", "url": "https://martinfowler.com/bliki/CircuitBreaker.html" }
     },
 
     {
       "number": 42, "name": "The Ironies of Automation", "category": "humans-autonomy",
       "tagline": "The more you automate, the harder the leftover human job becomes.",
-      "principle": "Automation doesn't shrink the human role — it transforms it into the hardest parts: passive monitoring plus rare, high-stakes intervention. Worse, by taking over the routine work, automation erodes the very skills and situational feel the operator needs when control is finally handed back. You design away the easy 95% and leave humans the 5% they're now least equipped to handle.",
-      "takeaway": "Don't just automate the happy path and dump edge cases on a human. Budget design effort for the residual role: keep the operator's context warm and make handback moments rare, clear, and well-supported.",
+      "principle": "Automation doesn't shrink the human role. It reshapes it into the hardest parts: passive monitoring plus rare, high-stakes intervention. Worse, by taking over the routine work, automation erodes the very skills and situational feel the operator needs when control finally lands back in their lap. You design away the easy 95% and leave humans the 5% they're now least ready to handle.",
+      "takeaway": "Don't just automate the happy path and dump the edge cases on a human. Spend design effort on the leftover role: keep the operator's context warm, and make handback moments rare, clear, and well-supported.",
       "source": { "title": "Ironies of Automation", "author": "Lisanne Bainbridge, 1983", "url": "https://doi.org/10.1016/0005-1098(83)90046-8" }
     },
     {
       "number": 43, "name": "Automation Bias", "category": "humans-autonomy",
       "tagline": "People will trust the machine over their own eyes.",
-      "principle": "Given an automated aid, operators make errors of omission (missing problems it didn't flag) and commission (following its recommendation even when their own valid evidence contradicts it). Automation becomes a heuristic shortcut that replaces vigilant checking — so the agent's recommendation doesn't just inform the human, it overrides their independent judgment.",
-      "takeaway": "Never present an agent's output as the only signal. Force the human to confront the raw evidence alongside the recommendation, and make disagreement cheap.",
+      "principle": "Give people an automated aid and they make errors of omission (missing problems it didn't flag) and commission (following its recommendation even when their own valid evidence says otherwise). The automation becomes a shortcut that replaces careful checking, so the agent's recommendation doesn't just inform the human. It overrides their independent judgment.",
+      "takeaway": "Never present an agent's output as the only signal. Make the human look at the raw evidence next to the recommendation, and make it cheap to disagree.",
       "source": { "title": "Does automation bias decision-making?", "author": "Skitka, Mosier, Burdick, 1999", "url": "https://www.sciencedirect.com/science/article/abs/pii/S1071581999902525" }
     },
     {
       "number": 44, "name": "Match the Level to the Stakes", "category": "humans-autonomy",
       "tagline": "Full autonomy is a setting, not a default.",
-      "principle": "Autonomy is a spectrum — from 'the computer suggests' to 'the computer acts then tells you' to 'the computer acts and decides whether to tell you at all'. The highest levels are unwise for consequential actions because no aid is perfectly reliable and the cost of a confident error is unbounded. Autonomy isn't one switch; it's a dial you set per action by how reversible and costly that action is.",
-      "takeaway": "Don't pick one autonomy level for the whole agent. Gate irreversible or high-impact actions to propose-and-confirm, while letting cheap, reversible ones run fully autonomous.",
+      "principle": "Autonomy is a spectrum, from 'the computer suggests' to 'the computer acts and then tells you' to 'the computer acts and decides whether to tell you at all'. The highest levels are a bad idea for consequential actions, because no aid is perfectly reliable and the cost of a confident error has no ceiling. Autonomy isn't one switch. It's a dial you set per action, based on how reversible and costly that action is.",
+      "takeaway": "Don't pick one autonomy level for the whole agent. Gate irreversible or high-impact actions behind propose-and-confirm, and let the cheap, reversible ones run fully on their own.",
       "source": { "title": "Human and Computer Control of Undersea Teleoperators", "author": "Sheridan & Verplank, 1978", "url": "https://www.semanticscholar.org/paper/Human-and-Computer-Control-of-Undersea-Sheridan-Verplank/d48b94e6af5093e7cc41e20fa6aca4f3a2d860bb" }
     },
     {
       "number": 45, "name": "Mind the Mode", "category": "humans-autonomy",
       "tagline": "Most automation surprises start with 'what mode is it in?'",
-      "principle": "Flexible, multi-mode automation produces 'automation surprises' — the system does something unexpected because the operator lost track of which mode it was in, what it would do next, and why. As autonomy grows, the human's job shifts to tracking its state, and every hidden mode transition becomes a latent failure path. An agent that silently changes how it behaves leaves its supervisor one step from being wrong about it.",
-      "takeaway": "Make the agent's current mode, active constraints, and next intended action continuously visible — and never let it switch mode silently. Loud, legible state beats a clever agent the human can't predict.",
+      "principle": "Flexible, multi-mode automation produces 'automation surprises', where the system does something unexpected because the operator lost track of which mode it was in, what it would do next, and why. As autonomy grows, the human's job shifts to tracking that state, and every hidden mode change becomes a latent failure path. An agent that silently changes how it behaves leaves its supervisor one step from being wrong about it.",
+      "takeaway": "Keep the agent's current mode, active constraints, and next intended action visible at all times, and never let it switch mode silently. Loud, legible state beats a clever agent the human can't predict.",
       "source": { "title": "How in the World Did We Ever Get into That Mode?", "author": "Sarter & Woods, 1995", "url": "https://journals.sagepub.com/doi/10.1518/001872095779049516" }
     },
 
     {
       "number": 46, "name": "The Handoff Is the Hard Part", "category": "trust-coordination",
       "tagline": "In multi-agent systems, failures live in the seams.",
-      "principle": "Each agent can be flawless in isolation and the system still breaks — because the bug lives between them: what got passed, what got dropped, who owned the state. Sub-agents don't inherit context automatically; anything not explicitly handed over simply doesn't exist on the other side.",
-      "takeaway": "Design the contract at every boundary. Pass everything the next agent needs explicitly, make state ownership unambiguous, and validate what crosses the seam instead of assuming it survived.",
+      "principle": "Each agent can be flawless on its own and the system still breaks, because the bug lives between them: what got passed, what got dropped, who owned the state. Sub-agents don't inherit context automatically. Anything you don't explicitly hand over simply doesn't exist on the other side.",
+      "takeaway": "Design the contract at every boundary. Pass everything the next agent needs explicitly, make state ownership unambiguous, and validate what crosses the seam instead of assuming it made it.",
       "source": { "title": "How we built our multi-agent research system", "author": "Anthropic, 2025", "url": "https://www.anthropic.com/engineering/built-multi-agent-research-system" }
     },
     {
       "number": 47, "name": "Trust Is Calibrated, Not Granted", "category": "trust-coordination",
       "tagline": "Autonomy is earned in proportion to track record.",
-      "principle": "People extend an agent freedom the way they extend it to a new hire — incrementally, on reversible things first, widening the leash only as it proves itself. Both failure modes are real: over-trust causes misuse, under-trust causes a good capability to be abandoned. Reliance tracks the perceived reliability the system reveals, not just its true reliability.",
-      "takeaway": "Start the agent on low-stakes, reversible actions and expand its blast radius as reliability is proven. Show why it's confident where it's strong and flag where it's weak, so users lean on it exactly where they should.",
+      "principle": "People give an agent freedom the way they give it to a new hire: a little at a time, on reversible things first, loosening the leash only as it proves itself. Both failure modes are real. Over-trust leads to misuse, under-trust leads to a good capability being abandoned. Reliance follows the reliability a system appears to have, not just the reliability it actually has.",
+      "takeaway": "Start the agent on low-stakes, reversible actions and widen its blast radius as it proves reliable. Show why it's confident where it's strong and flag where it's weak, so people lean on it exactly where they should.",
       "source": { "title": "Trust in Automation: Designing for Appropriate Reliance", "author": "Lee & See, 2004", "url": "https://journals.sagepub.com/doi/10.1518/hfes.46.1.50_30392" }
     },
     {
       "number": 48, "name": "The Escape Hatch Law", "category": "trust-coordination",
       "tagline": "No clean exit means a fabricated one.",
-      "principle": "An agent with no legitimate way to say 'I'm stuck' or 'hand this to a human' will invent a path instead. Cornered without an exit — or forced to fill a required field it has no answer for — it fabricates something plausible rather than admitting the gap. A confident hallucination is the default when honesty isn't an option.",
-      "takeaway": "Always give the agent a first-class way out: an 'escalate to human' action, a nullable field, an explicit 'unknown'. Make 'I don't know' a valid, easy answer and you trade fabrications for honest gaps.",
+      "principle": "An agent with no legitimate way to say 'I'm stuck' or 'hand this to a human' will invent a path instead. Cornered with no exit, or forced to fill a required field it has no answer for, it makes up something plausible rather than admit the gap. A confident hallucination is the default when honesty isn't an option.",
+      "takeaway": "Always give the agent a real way out: an 'escalate to human' action, a nullable field, an explicit 'unknown'. Make 'I don't know' a valid, easy answer and you trade fabrications for honest gaps.",
       "source": { "title": "Reduce hallucinations (Anthropic Docs)", "author": "Anthropic", "url": "https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-hallucinations" }
     },
     {
       "number": 49, "name": "Don't Let the Author Be the Judge", "category": "trust-coordination",
       "tagline": "The thing that made it shouldn't grade it.",
-      "principle": "Without an external signal, a model largely fails to self-correct its own reasoning — and often makes correct answers worse by second-guessing them. The model that produced a flawed plan is the same one judging it, with the same blind spots. Real correction needs an outside signal: a tool result, a test that runs, a different model. 'Reflect and try again' on the same model with no new information is theater.",
-      "takeaway": "Separate generation from judgment. Use an independent instance — fresh context, no memory of the original reasoning — or an external check like a passing test, before trusting a 'corrected' answer.",
+      "principle": "Without an external signal, a model mostly fails to self-correct its own reasoning, and often makes correct answers worse by second-guessing them. The model that produced a flawed plan is the same one judging it, with the same blind spots. Real correction needs an outside signal: a tool result, a test that runs, a different model. 'Reflect and try again' on the same model with no new information is theater.",
+      "takeaway": "Separate generation from judgment. Use an independent instance with fresh context and no memory of the original reasoning, or an external check like a passing test, before you trust a 'corrected' answer.",
       "source": { "title": "Large Language Models Cannot Self-Correct Reasoning Yet", "author": "Huang et al., 2023", "url": "https://arxiv.org/abs/2310.01798" }
     },
     {
       "number": 50, "name": "Preserve Provenance", "category": "trust-coordination",
       "tagline": "Don't lose where a fact came from.",
-      "principle": "When findings get summarized and re-summarized, the claim survives but its source, its date, and its uncertainty quietly fall away — until you're holding an assertion you can't verify or defend. Two sources disagreeing isn't noise to flatten; it's signal to keep. A fact without provenance is a rumor with good posture.",
-      "takeaway": "Carry attribution through every transformation: claim, source, date, confidence. Preserve conflicts with both sides attributed instead of silently picking a winner, so downstream can audit, weigh, and trust.",
+      "principle": "When findings get summarized and re-summarized, the claim survives but its source, its date, and its uncertainty quietly drop away, until you're holding an assertion you can't verify or defend. Two sources disagreeing isn't noise to flatten. It's signal to keep. A fact without its provenance is just a rumor that carries itself well.",
+      "takeaway": "Carry the attribution through every transformation: claim, source, date, and confidence. Keep conflicts with both sides attributed instead of quietly picking a winner, so whoever's downstream can audit it, weigh it, and trust it.",
       "source": { "title": "Effective Context Engineering for AI Agents", "author": "Anthropic", "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents" }
     }
   ],
   "references": [
-    { "title": "Building Effective Agents", "source": "Anthropic Engineering", "url": "https://www.anthropic.com/research/building-effective-agents", "note": "The foundational map of agent patterns — when a workflow beats an agent, and when to add complexity at all. Underpins Narrow Beats General, Determinism at the Edges, and Don't Build an Agent When a Workflow Will Do." },
-    { "title": "How We Built Our Multi-Agent Research System", "source": "Anthropic Engineering", "url": "https://www.anthropic.com/engineering/built-multi-agent-research-system", "note": "Coordinator / sub-agent design, the 15× token tax, and why the hard bugs live in the handoffs. Backs The Handoff Is the Hard Part and The Multi-Agent Tax." },
-    { "title": "Effective Context Engineering for AI Agents", "source": "Anthropic Engineering", "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents", "note": "Curating the context window — what to keep, what to drop, and why more context often hurts. Backs Context Decay and Preserve Provenance." },
+    { "title": "Building Effective Agents", "source": "Anthropic Engineering", "url": "https://www.anthropic.com/research/building-effective-agents", "note": "The foundational map of agent patterns: when a workflow beats an agent, and when to add complexity at all. Underpins Narrow Beats General, Determinism at the Edges, and Don't Build an Agent When a Workflow Will Do." },
+    { "title": "How We Built Our Multi-Agent Research System", "source": "Anthropic Engineering", "url": "https://www.anthropic.com/engineering/built-multi-agent-research-system", "note": "Coordinator and sub-agent design, the 15x token tax, and why the hard bugs live in the handoffs. Backs The Handoff Is the Hard Part and The Multi-Agent Tax." },
+    { "title": "Effective Context Engineering for AI Agents", "source": "Anthropic Engineering", "url": "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents", "note": "Curating the context window: what to keep, what to drop, and why more context often hurts. Backs Context Decay and Preserve Provenance." },
     { "title": "Writing Tools for Agents", "source": "Anthropic Engineering", "url": "https://www.anthropic.com/engineering/writing-tools-for-agents", "note": "Why tool descriptions are the real interface the model reasons over. Backs The Tool Description Is the Prompt." },
-    { "title": "Lost in the Middle: How Language Models Use Long Contexts", "source": "Liu et al., 2023", "url": "https://arxiv.org/abs/2307.03172", "note": "The empirical basis for Position Is Power — models reliably use the start and end of long inputs and lose the middle." },
+    { "title": "Lost in the Middle: How Language Models Use Long Contexts", "source": "Liu et al., 2023", "url": "https://arxiv.org/abs/2307.03172", "note": "The empirical basis for Position Is Power: models reliably use the start and end of long inputs and lose the middle." },
     { "title": "The Bitter Lesson", "source": "Richard Sutton, 2019", "url": "http://www.incompleteideas.net/IncIdeas/BitterLesson.html", "note": "Seventy years of AI distilled: general methods plus compute beat hand-crafted cleverness. Backs Stop Tuning, Start Scaling." },
     { "title": "Chain-of-Thought & Self-Consistency", "source": "Wei et al. 2022 / Wang et al. 2022", "url": "https://arxiv.org/abs/2201.11903", "note": "Reasoning emerges when you ask for it, and sampling many paths to vote beats one greedy chain. Backs Think Before You Touch and Don't Bet on One Chain." },
-    { "title": "Retrieval-Augmented Generation (RAG)", "source": "Lewis et al., 2020", "url": "https://arxiv.org/abs/2005.11401", "note": "The original RAG paper — retrieval supplies the facts the generator reasons over. Backs Retrieval Is the Ceiling." },
+    { "title": "Retrieval-Augmented Generation (RAG)", "source": "Lewis et al., 2020", "url": "https://arxiv.org/abs/2005.11401", "note": "The original RAG paper: retrieval supplies the facts the generator reasons over. Backs Retrieval Is the Ceiling." },
     { "title": "MemGPT: Towards LLMs as Operating Systems", "source": "Packer et al., 2023", "url": "https://arxiv.org/abs/2310.08560", "note": "Treats the context window as RAM and pages memory in and out. Backs Memory Is a System, Not a Window." },
     { "title": "Your AI Product Needs Evals", "source": "Hamel Husain, 2024", "url": "https://hamel.dev/blog/posts/evals/", "note": "The case for evals as the central discipline of building with LLMs. Backs Vibes Don't Scale and Averages Lie." },
     { "title": "Judging LLM-as-a-Judge (MT-Bench)", "source": "Zheng et al., 2023", "url": "https://arxiv.org/abs/2306.05685", "note": "Position, verbosity, and self-enhancement biases in LLM graders, with mitigations. Backs The Judge Is Biased." },
-    { "title": "The Lethal Trifecta for AI Agents", "source": "Simon Willison, 2025", "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/", "note": "Private data + untrusted content + exfiltration = exploitable. The defining agent-security heuristic. Backs The Lethal Trifecta and Quarantine Untrusted Tokens." },
+    { "title": "The Lethal Trifecta for AI Agents", "source": "Simon Willison, 2025", "url": "https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/", "note": "Private data plus untrusted content plus exfiltration equals exploitable. The defining agent-security heuristic. Backs The Lethal Trifecta and Quarantine Untrusted Tokens." },
     { "title": "OWASP Top 10 for LLM Applications", "source": "OWASP Gen AI Security Project, 2025", "url": "https://genai.owasp.org/llm-top-10/", "note": "The industry-standard catalog of LLM application risks and mitigations. Backs Sandbox the Blast Radius and the safety laws." },
     { "title": "FrugalGPT: Reducing LLM Cost", "source": "Chen, Zaharia, Zou, 2023", "url": "https://arxiv.org/abs/2305.05176", "note": "Model cascades match top-tier quality at a fraction of the cost. Backs Cascade Before You Escalate." },
-    { "title": "Release It! / CircuitBreaker", "source": "Nygard 2007 / Fowler 2014", "url": "https://martinfowler.com/bliki/CircuitBreaker.html", "note": "Distributed-systems resilience patterns — circuit breakers, bulkheads, fail-fast. Backs Trip the Breaker." },
+    { "title": "Release It! / CircuitBreaker", "source": "Nygard 2007 / Fowler 2014", "url": "https://martinfowler.com/bliki/CircuitBreaker.html", "note": "Distributed-systems resilience patterns: circuit breakers, bulkheads, and fail-fast. Backs Trip the Breaker." },
     { "title": "Ironies of Automation", "source": "Lisanne Bainbridge, 1983", "url": "https://doi.org/10.1016/0005-1098(83)90046-8", "note": "The foundational human-factors paper: automating the easy work leaves humans the hardest residual role. Backs The Ironies of Automation." },
-    { "title": "Trust in Automation: Designing for Appropriate Reliance", "source": "Lee & See, 2004", "url": "https://journals.sagepub.com/doi/10.1518/hfes.46.1.50_30392", "note": "The two-sided model of trust — misuse from over-trust, disuse from under-trust. Backs Trust Is Calibrated, Not Granted." },
+    { "title": "Trust in Automation: Designing for Appropriate Reliance", "source": "Lee & See, 2004", "url": "https://journals.sagepub.com/doi/10.1518/hfes.46.1.50_30392", "note": "The two-sided model of trust: misuse from over-trust, disuse from under-trust. Backs Trust Is Calibrated, Not Granted." },
     { "title": "Laws of UX", "source": "Jon Yablonski", "url": "https://lawsofux.com", "note": "The format that inspired this deck: durable principles, one card each, named and memorable." }
   ]
 }

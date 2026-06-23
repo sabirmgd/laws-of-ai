@@ -62,7 +62,7 @@ const sandboxProductPath = () => `/sandbox/${PRODUCT.slug || "ai-agent-audit-kit
 const editionEntryPath = () => freeEditionEnabled() ? "/edition.html" : "/access";
 const productIsFree = () => PRODUCT.free === true || /^free\b/i.test(String(PRODUCT.price || "")) || flag("PRODUCT_FREE_ENABLED", false);
 const checkoutHref = () => productIsFree() ? "/kit/START-HERE.md" : (PRODUCT.checkoutUrl || "#paypal-checkout");
-const checkoutLabel = () => productIsFree() ? "Open the free kit" : `Get the kit — ${PRODUCT.price || "$14.90"}`;
+const checkoutLabel = () => productIsFree() ? "Open the free kit" : `Get the kit for ${PRODUCT.price || "$14.90"}`;
 const productPriceLabel = () => productIsFree() ? "Free" : (PRODUCT.price || "$14.90");
 const productPriceSub = () => productIsFree() ? "Public during launch" : "skill + protected edition";
 const productProviderLabel = () => productIsFree() ? "No checkout required" : `Checkout via ${PRODUCT.checkoutProvider || "PayPal"}`;
@@ -145,27 +145,38 @@ function cardHtml(l) {
   const cat = catById[l.category] || {};
   const accent = cat.accent || "#888";
   const src = l.source || {};
+  const media = l.image
+    ? `<div class="card__media" style="--law-img:url('/assets/edition/${l.image.file}')">
+            <img class="card__img" loading="lazy" decoding="async" width="${l.image.width}" height="${l.image.height}" src="/assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" />
+          </div>`
+    : `<div class="card__media card__media--icon"><span class="card__icon">${icon(cat.icon)}</span></div>`;
   return `        <article class="card" id="${l.slug}"
           data-category="${esc(l.category)}"
           data-source-title="${esc(src.title || "")}"
           data-source-author="${esc(src.author || "")}"
           data-source-url="${esc(src.url || "")}"
           style="--card-accent:${accent};--tag-color:${accent}">
-          <div class="card__top">
-            <span class="card__icon">${icon(cat.icon)}</span>
-            <span class="card__number">${pad(l.number)}</span>
-          </div>
-          <h2 class="card__name"><a href="/law/${l.slug}/" class="card__link">${esc(l.name)}</a></h2>
-          <p class="card__tagline">${esc(l.tagline)}</p>
-          <div class="card__detail" hidden>
-            <h3>The principle</h3>
-            <p class="card__principle">${esc(l.principle)}</p>
-            <h3>The takeaway</h3>
-            <p class="card__takeaway">${esc(l.takeaway)}</p>
-          </div>
-          <div class="card__foot">
-            <span class="tag">${esc(cat.name || "")}</span>
-            <span class="card__cue" aria-hidden="true">Read the law ${arrow}</span>
+          ${media}
+          <div class="card__body">
+            <div class="card__head">
+              <span class="card__number">${pad(l.number)}</span>
+              <button class="card__viewed" type="button" data-viewed-toggle aria-pressed="false" title="Mark this law as viewed">
+                <svg class="card__check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span class="card__viewed-tx">Viewed</span>
+              </button>
+            </div>
+            <h2 class="card__name"><a href="/law/${l.slug}/" class="card__link">${esc(l.name)}</a></h2>
+            <p class="card__tagline">${esc(l.tagline)}</p>
+            <div class="card__detail" hidden>
+              <h3>The principle</h3>
+              <p class="card__principle">${esc(l.principle)}</p>
+              <h3>The takeaway</h3>
+              <p class="card__takeaway">${esc(l.takeaway)}</p>
+            </div>
+            <div class="card__foot">
+              <span class="tag">${esc(cat.name || "")}</span>
+              <span class="card__cue" aria-hidden="true">Read the law ${arrow}</span>
+            </div>
           </div>
         </article>`;
 }
@@ -208,9 +219,32 @@ function newsletterHtml() {
 function heroCtaHtml() {
   if (!productEnabled() && !(SITE.newsletter && SITE.newsletter.action)) return "";
   return `      <div class="hero__actions">
-        ${productEnabled() ? `<a class="hero__btn" href="${productPath()}">Get the audit kit ${arrow}</a>` : ""}
+        ${productEnabled() ? `<a class="hero__btn" href="${productPath()}">Audit your agent free ${arrow}</a>` : ""}
         ${SITE.newsletter?.action ? `<a class="hero__btn hero__btn--ghost" href="#subscribe">Free 5-day course</a>` : ""}
       </div>`;
+}
+
+function storyHtml() {
+  return `  <section class="story" id="story" aria-label="Why these laws exist">
+    <div class="story__in">
+      <p class="story__eyebrow">The story</p>
+      <h2 class="story__title">Why I wrote these</h2>
+      <div class="story__body">
+        <p>I've built a lot of AI agents. Along the way I read the papers, the engineering write-ups, and watched more YouTube deep-dives than I'd like to admit. But the thing that actually taught me these laws was shipping agents and watching the same failures show up over and over.</p>
+        <p>Different platform, different model, different harness, same handful of problems. Context going stale. Tools the model couldn't read. Retrieval that missed the one passage that mattered. Evals that didn't exist until something broke in front of a user. Permissions that were far too broad. No clean handoff when the agent got stuck.</p>
+        <p>My background is software engineering, and that turned out to matter more than I expected. Most of these failures aren't really AI problems. They're reliability, distributed-systems, and interface problems wearing a new coat. The research gave me the why. Years of writing software gave me the instinct for the fix.</p>
+        <p>So I built this as my own reference: one place that pulls together what the research says and what actually holds up in production, written as ${laws.length} laws I can point to whenever I'm designing an agent.</p>
+        <p>Every law is backed by a real source, whether a paper, an essay, or hard-won engineering experience. And they're deliberately model-agnostic. The models change every few months. These failure modes don't, because they live in the architecture of agent systems, not in any one model. Internalize them and you'll build agents that are more reliable, more secure, and easier to trust, no matter what you build them with.</p>
+      </div>
+      <div class="story__card">
+        <div class="story__id">
+          <p class="story__name">${esc(SITE.author)}</p>
+          <p class="story__role">Principal Software Engineer. I build AI agents and workflow automations, and I wrote ${esc(SITE.name)}.</p>
+        </div>
+        <a class="story__cta" href="https://www.linkedin.com/in/sabir-moglad/" target="_blank" rel="noopener">Connect on LinkedIn ${arrow}</a>
+      </div>
+    </div>
+  </section>`;
 }
 
 function refsHtml() {
@@ -232,7 +266,7 @@ function refsHtml() {
   return `  <section class="refs" id="references" aria-label="Further reading">
     <div class="refs__head">
       <h2 class="refs__title">Further reading</h2>
-      <p class="refs__sub">The thinking these laws lean on — foundational essays, papers, and docs worth your time.</p>
+      <p class="refs__sub">The thinking these laws lean on: foundational essays, papers, and docs worth your time.</p>
     </div>
     <ol class="refs__list">
 ${items}
@@ -249,7 +283,7 @@ function navHtml(active) {
   return `  <a class="skip" href="#main">Skip to content</a>
   <header class="nav" id="nav">
     <div class="nav__in">
-      <a class="nav__brand" href="/" aria-label="${esc(SITE.name)} — home">
+      <a class="nav__brand" href="/" aria-label="${esc(SITE.name)}, home">
         <span class="nav__mark">${navMark}</span>
         <span class="nav__brandtx">Laws of AI Agents</span>
       </a>
@@ -259,7 +293,7 @@ function navHtml(active) {
         ${link(editionEntryPath(), "Digital edition", "edition")}
         ${link("/#references", "Sources", "refs")}
       </nav>
-      <a class="nav__cta" href="${productEnabled() ? productPath() : editionEntryPath()}">${productEnabled() ? "Get the kit" : "Read the edition"} ${arrow}</a>
+      <a class="nav__cta" href="${productEnabled() ? productPath() : editionEntryPath()}">${productEnabled() ? "Audit your agent" : "Read the edition"} ${arrow}</a>
     </div>
   </header>`;
 }
@@ -307,7 +341,7 @@ function indexHtml() {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${esc(SITE.name)} — ${esc(DATA.subtitle)}</title>
+  <title>${esc(SITE.name)} · ${esc(DATA.subtitle)}</title>
   <meta name="description" content="${esc(SITE.description)}" />
   <meta name="keywords" content="${esc(SITE.keywords)}" />
   <meta name="author" content="${esc(SITE.author)}" />
@@ -383,7 +417,12 @@ ${editionPromoHtml()}
       <nav class="filters" id="filters" aria-label="Filter laws by category">
         ${filterHtml()}
       </nav>
-      <span class="filters__count" id="filtersCount">${laws.length} laws</span>
+      <div class="filters__meta">
+        <button class="filters__viewed" id="viewedToggle" type="button" aria-pressed="false" hidden>
+          <span id="viewedCount">0 of ${laws.length} viewed</span>
+        </button>
+        <span class="filters__count" id="filtersCount">${laws.length} laws</span>
+      </div>
     </div>
   </div>
 
@@ -395,9 +434,10 @@ ${newsletterHtml()}
 
 ${refsHtml()}
 
+${storyHtml()}
+
   <footer class="footer">
-    <p>Built by ${esc(SITE.author)}. A living list — more laws as they earn their place.</p>
-    <p class="footer__sub">Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a> · ${YEAR}</p>
+    <p>Built by ${esc(SITE.author)}. A living list, with more laws as they earn their place.</p>
   </footer>
 
   <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-name" hidden>
@@ -560,13 +600,13 @@ function editionHtml({ buyerResources = false } = {}) {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${esc(SITE.name)} — The Expanded Digital Edition</title>
-  <meta name="description" content="The expanded digital edition of ${esc(SITE.name)}: all ${laws.length} laws in full — the mechanism, warning signs, a worked example, an apply-it recipe, and sources, each with an explanatory diagram." />
+  <title>${esc(SITE.name)} · The Expanded Digital Edition</title>
+  <meta name="description" content="The expanded digital edition of ${esc(SITE.name)}: all ${laws.length} laws in full, with the mechanism, warning signs, a worked example, a recipe for applying it, and sources, each with an explanatory diagram." />
   <meta name="author" content="${esc(SITE.author)}" />
   <link rel="canonical" href="${canonical}" />
   <meta name="theme-color" content="#0b0c10" />
   <meta property="og:type" content="article" />
-  <meta property="og:title" content="${esc(SITE.name)} — The Expanded Digital Edition" />
+  <meta property="og:title" content="${esc(SITE.name)} · The Expanded Digital Edition" />
   <meta property="og:description" content="All ${laws.length} laws in full, each with an explanatory diagram." />
   <meta property="og:url" content="${canonical}" />
   <meta property="og:image" content="${esc(SITE.ogImage)}" />
@@ -720,9 +760,9 @@ function editionPromoHtml() {
   return `  <section class="promo" aria-label="Digital edition">
     <div class="promo__in">
       <p class="promo__eyebrow">${productEnabled() && !productIsFree() ? "Protected Buyer Edition" : "The Expanded Digital Edition"}</p>
-      <h2 class="promo__title">Every law, in full — with a diagram for each.</h2>
-      <p class="promo__sub">The mechanism underneath, the warning signs, a worked example, an apply-it recipe, and the sources. ${laws.length} laws, expandable in one place${productEnabled() && !productIsFree() ? " for paid buyers" : ""}.</p>
-      <a class="promo__btn" href="${editionEntryPath()}">${productEnabled() && !productIsFree() ? "Unlock the digital edition" : "Open the digital edition"} ${arrow}</a>
+      <h2 class="promo__title">Every law, in full, with a diagram for each.</h2>
+      <p class="promo__sub">For each law you get the mechanism underneath it, the warning signs, a worked example, a recipe for applying it, and the sources. All ${laws.length}, in one place${productEnabled() && !productIsFree() ? ", for paid buyers" : ""}.</p>
+      <a class="promo__btn" href="${editionEntryPath()}">${productEnabled() && !productIsFree() ? "Unlock the digital edition" : "Read every law in full"} ${arrow}</a>
     </div>
   </section>`;
 }
@@ -730,16 +770,16 @@ function editionPromoHtml() {
 function productPromoHtml() {
   return `  <section class="promo promo--product" aria-label="${esc(PRODUCT.shortName || PRODUCT.name)}">
     <div class="promo__in">
-      <p class="promo__eyebrow">${productIsFree() ? "Free kit" : "Paid kit"} · ${esc(productPriceLabel())}</p>
+      <p class="promo__eyebrow">${productIsFree() ? "Free kit · No checkout" : `Paid kit · ${esc(productPriceLabel())}`}</p>
       <h2 class="promo__title">${esc(PRODUCT.name)}</h2>
-      <p class="promo__sub">I built this after building and reviewing real agents. Use the installable audit skill and rubric to inspect prompts, tools, retrieval, evals, security, and handoffs.</p>
-      <a class="promo__btn" href="${productPath()}">See what is inside ${arrow}</a>
+      <p class="promo__sub">I built this from auditing real agents in production. Install the skill, point it at your repo, workflow export, or transcripts, and it checks prompts, tools, retrieval, evals, security, and handoffs against the ${laws.length} laws.</p>
+      <a class="promo__btn" href="${productPath()}">Audit your agent ${arrow}</a>
     </div>
   </section>`;
 }
 
 function editionCss() {
-  return `/* The Expanded Digital Edition — self-contained, dark, premium. */
+  return `/* The Expanded Digital Edition: self-contained, dark, premium. */
 :root{--bg:#0a0b0f;--card:#14161d;--card-hover:#181b24;--border:#23262f;--text:#f3f4f6;--dim:#9aa0ac;--faint:#6b7180;--accent:#7c9cff;--serif:"Fraunces",Georgia,serif;--sans:"Inter",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace;--maxw:840px;--ease:cubic-bezier(.16,1,.3,1)}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
@@ -888,7 +928,7 @@ function lawJsonLd(l) {
     {
       "@type": "Article",
       "@id": url + "#article",
-      headline: `${l.name} — ${l.tagline}`,
+      headline: `${l.name}: ${l.tagline}`,
       description: l.principle.slice(0, 280),
       url,
       mainEntityOfPage: url,
@@ -929,7 +969,7 @@ function lawPageHtml(l) {
     .join("\n");
 
   const description = (l.tagline + " " + l.principle).slice(0, 300);
-  const title = `${l.name} — ${l.tagline} | ${SITE.name}`;
+  const title = `${l.name}: ${l.tagline} | ${SITE.name}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -945,14 +985,14 @@ function lawPageHtml(l) {
 
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="${esc(SITE.name)}" />
-  <meta property="og:title" content="${esc(l.name)} — ${esc(l.tagline)}" />
+  <meta property="og:title" content="${esc(l.name)}: ${esc(l.tagline)}" />
   <meta property="og:description" content="${esc(description)}" />
   <meta property="og:url" content="${url}" />
   <meta property="og:locale" content="${esc(SITE.locale)}" />
   <meta property="og:image" content="${l.image ? `${SITE.url}/assets/edition/${l.image.file}` : esc(SITE.ogImage)}" />
   <meta property="og:image:alt" content="${esc(l.name)}" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="${esc(l.name)} — ${esc(l.tagline)}" />
+  <meta name="twitter:title" content="${esc(l.name)}: ${esc(l.tagline)}" />
   <meta name="twitter:description" content="${esc(description)}" />
   <meta name="twitter:image" content="${l.image ? `${SITE.url}/assets/edition/${l.image.file}` : esc(SITE.ogImage)}" />
   <meta name="twitter:creator" content="${esc(SITE.twitter)}" />
@@ -1072,7 +1112,7 @@ function categoryJsonLd(cat, lawsHere) {
       {
         "@type": "CollectionPage",
         url,
-        name: `${cat.name} — Laws of AI Agents`,
+        name: `${cat.name} · Laws of AI Agents`,
         description: cat.blurb,
         isPartOf: `${SITE.url}/#website`,
         hasPart: {
@@ -1104,7 +1144,7 @@ function categoryPageHtml(cat) {
       </a>`
     )
     .join("\n");
-  const title = `${cat.name} — Laws of AI Agents`;
+  const title = `${cat.name} · Laws of AI Agents`;
   const description = `${cat.blurb} ${lawsHere.length} laws covering ${cat.name.toLowerCase()} in AI agent design.`;
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1192,7 +1232,7 @@ function authorPageHtml() {
       "https://twitter.com/sabirmgd",
       "https://x.com/sabirmgd",
       "https://github.com/sabirmgds",
-      "https://linkedin.com/in/sabirmoglad",
+      "https://www.linkedin.com/in/sabir-moglad",
     ],
     description: `Builder of AI agents in production. Author of ${SITE.name}.`,
     knowsAbout: [
@@ -1200,7 +1240,7 @@ function authorPageHtml() {
       "Agent evaluation", "Prompt engineering", "Agent architecture",
     ],
   });
-  const title = `About ${SITE.author} — ${SITE.name}`;
+  const title = `About ${SITE.author} · ${SITE.name}`;
   const description = `${SITE.author} is the author of ${SITE.name}: 50 hard-won, source-backed heuristics for building AI agents that actually work.`;
   return `<!DOCTYPE html>
 <html lang="en">
@@ -1244,12 +1284,12 @@ ${navHtml("home")}
     <header class="law__hero">
       <p class="law__eyebrow">About the author</p>
       <h1 class="law__title">${esc(SITE.author)}</h1>
-      <p class="law__sub">Builder of AI agents in production — and the author of ${esc(SITE.name)}.</p>
+      <p class="law__sub">I build AI agents in production, and I'm the author of ${esc(SITE.name)}.</p>
     </header>
 
     <section class="law__body">
       <p>I'm an engineer building AI agent systems across multiple production codebases. ${esc(SITE.name)} is the field notebook: every law is a heuristic I learned the expensive way and then went looking for the paper or essay that explained why.</p>
-      <p>The site is deliberately model-agnostic. The laws apply whether you're using Claude, GPT, Gemini, or open-weights — because the failure modes live in the architecture of agent systems, not in any one model.</p>
+      <p>The site is deliberately model-agnostic. The laws apply whether you're using Claude, GPT, Gemini, or open-weights, because the failure modes live in the architecture of agent systems, not in any one model.</p>
       <h2 class="lw__lbl">What I work on</h2>
       <ul class="lw__ul">
         <li>Multi-agent pipelines for enterprise document processing</li>
@@ -1259,9 +1299,9 @@ ${navHtml("home")}
       </ul>
       <h2 class="lw__lbl">Find me</h2>
       <ul class="lw__ul">
-        <li><a href="https://twitter.com/sabirmgd" target="_blank" rel="noopener">Twitter / X — @sabirmgd</a></li>
-        <li><a href="https://github.com/sabirmgds" target="_blank" rel="noopener">GitHub — sabirmgds</a></li>
-        <li><a href="https://linkedin.com/in/sabirmoglad" target="_blank" rel="noopener">LinkedIn</a></li>
+        <li><a href="https://twitter.com/sabirmgd" target="_blank" rel="noopener">Twitter / X: @sabirmgd</a></li>
+        <li><a href="https://github.com/sabirmgds" target="_blank" rel="noopener">GitHub: sabirmgds</a></li>
+        <li><a href="https://www.linkedin.com/in/sabir-moglad" target="_blank" rel="noopener">LinkedIn</a></li>
       </ul>
       <div class="lw__call lw__call--take">
         <p class="lw__lbl lw__lbl--ac">Get the laws in your inbox</p>
@@ -1290,7 +1330,7 @@ ${backTopHtml}
 // ---------- comparison page ----------
 function comparisonPageHtml() {
   const url = `${SITE.url}/laws-of-ai-vs-laws-of-ux/`;
-  const title = `Laws of AI Agents vs Laws of UX — what's different, what's the same`;
+  const title = `Laws of AI Agents vs Laws of UX: what's different, what's the same`;
   const description = `A side-by-side look at two heuristic decks: Laws of UX (Jon Yablonski) for interface design and Laws of AI Agents (Sabir Moglad) for agent systems. What they share, where they diverge.`;
   const jsonLd = JSON.stringify({
     "@context": "https://schema.org",
@@ -1346,16 +1386,16 @@ ${navHtml("home")}
     <header class="law__hero">
       <p class="law__eyebrow">Comparison</p>
       <h1 class="law__title">Laws of AI Agents vs Laws of UX</h1>
-      <p class="law__sub">Two heuristic decks, one shared format — but they're solving very different problems.</p>
+      <p class="law__sub">Two heuristic decks, one shared format, but they're solving very different problems.</p>
     </header>
     <section class="law__body">
-      <p><a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a> by Jon Yablonski is the canonical reference for psychology-grounded interface heuristics — Hick's Law, Fitts's Law, the Aesthetic-Usability Effect. It works because the underlying science (human perception, cognition, attention) is decades old and remarkably stable.</p>
+      <p><a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a> by Jon Yablonski is the canonical reference for psychology-grounded interface heuristics like Hick's Law, Fitts's Law, and the Aesthetic-Usability Effect. It works because the underlying science (human perception, cognition, attention) is decades old and remarkably stable.</p>
       <p><a href="/">Laws of AI Agents</a> borrows that format because the format is excellent: a numbered deck of named principles, each one short, memorable, and citable. But the content is doing something different: capturing fast-moving, hard-won knowledge about systems where the substrate (the model) changes every few months.</p>
 
       <h2 class="lw__lbl">What they share</h2>
       <ul class="lw__ul">
         <li><strong>Format</strong>: numbered, named, one-paragraph principles you can link to in a code review or design crit.</li>
-        <li><strong>Authority pattern</strong>: each law cites a source — the paper, essay, or piece of empirical work it leans on.</li>
+        <li><strong>Authority pattern</strong>: each law cites a source, the paper, essay, or piece of empirical work it leans on.</li>
         <li><strong>Audience</strong>: practitioners shipping things, not academics defending theses.</li>
       </ul>
 
@@ -1368,7 +1408,7 @@ ${navHtml("home")}
       </ul>
 
       <h2 class="lw__lbl">If you only read one</h2>
-      <p>If you're shipping interfaces to humans, start with <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a>. If you're shipping systems where an LLM is making decisions, <a href="/">start here</a> — and then read Laws of UX anyway, because the agent is still going to be talked to by a human.</p>
+      <p>If you're shipping interfaces to humans, start with <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a>. If you're shipping systems where an LLM is making decisions, <a href="/">start here</a>, then read Laws of UX anyway, because the agent is still going to be talked to by a human.</p>
 
       <div class="lw__call lw__call--take">
         <p class="lw__lbl lw__lbl--ac">Browse the deck</p>
@@ -1417,7 +1457,7 @@ function productJsonLd(url = productUrl()) {
 }
 
 function productPageHtml({ url = productUrl(), noindex = false, testPage = false } = {}) {
-  const title = `${PRODUCT.name} — ${productPriceLabel()}`;
+  const title = `${PRODUCT.name} · ${productPriceLabel()}`;
   const description = PRODUCT.summary || "A practical self-audit kit for finding issues in AI agents.";
   const story = [
     "I made this because I kept seeing the same pattern while building and reviewing agent systems: the model was rarely the only problem. The real failures came from stale context, vague tools, weak retrieval, missing evals, unsafe permissions, and handoffs nobody had designed.",
@@ -1730,14 +1770,14 @@ Inspired by: Laws of UX (https://lawsofux.com).
 ## How to cite
 When citing a specific law, link to its canonical URL: \`${SITE.url}/law/{slug}/\`.
 When citing the deck as a whole, link to ${SITE.url}/.
-Each law has an attributed source — please cite that as well when applicable.
+Each law has an attributed source, so please cite that as well when applicable.
 
 ## Laws
 
 ${byCat}
 
 ## Further reading
-${refs.map((r) => `- [${r.title}](${r.url}) — ${r.source}`).join("\n")}
+${refs.map((r) => `- [${r.title}](${r.url}) (${r.source})`).join("\n")}
 `;
 }
 
