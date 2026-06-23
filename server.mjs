@@ -1054,8 +1054,8 @@ function kitPageHtml(objectPath, rawContent) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escHtml(title)} \u2014 AI Agent Audit Kit | Laws of AI Agents</title>
-  <meta name="description" content="${escHtml(title)} \u2014 part of the AI Agent Audit Kit from Laws of AI Agents.">
+  <title>${escHtml(title)} \u00b7 AI Agent Audit Kit | Laws of AI Agents</title>
+  <meta name="description" content="${escHtml(title)}, part of the AI Agent Audit Kit from Laws of AI Agents.">
   <meta name="robots" content="index, follow">
   <meta name="theme-color" content="#0b0c10">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
@@ -1106,7 +1106,7 @@ function kitPageHtml(objectPath, rawContent) {
   <a class="skip" href="#main">Skip to content</a>
   <header class="nav" id="nav">
     <div class="nav__in">
-      <a class="nav__brand" href="/" aria-label="Laws of AI Agents \u2014 home">
+      <a class="nav__brand" href="/" aria-label="Laws of AI Agents, home">
         <span class="nav__mark">${navMark}</span>
         <span class="nav__brandtx">Laws of AI Agents</span>
       </a>

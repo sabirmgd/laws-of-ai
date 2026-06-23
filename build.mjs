@@ -12,9 +12,10 @@
  *
  * Zero dependencies — pure Node. Edit data/laws.json, rebuild, done.
  */
-import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync } from "node:fs";
+import { writeFileSync, mkdirSync, copyFileSync, existsSync, rmSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { loadBook } from "./lib/content.mjs";
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -39,6 +40,25 @@ const slugify = (s) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 const pad = (n) => String(n).padStart(2, "0");
+
+// Cache-busting: static assets are served with a 1-year immutable cache, so the
+// URL must change whenever the content does. Append ?v=<content-hash> to each
+// asset reference. Lazy + memoized; generated CSS is hashed from its output.
+const _verCache = {};
+function v(name) {
+  if (name in _verCache) return _verCache[name];
+  let content = "";
+  try {
+    if (name === "styles.css" || name === "app.js" || name === "favicon.svg") {
+      content = readFileSync(join(ROOT, "src", name), "utf8");
+    } else if (name === "nav.css") content = navCss();
+    else if (name === "law.css") content = lawCss();
+    else if (name === "edition.css") content = editionCss();
+  } catch (_) {}
+  const hash = createHash("sha1").update(content).digest("hex").slice(0, 8);
+  _verCache[name] = "?v=" + hash;
+  return _verCache[name];
+}
 
 const catById = book.catById;
 const laws = book.laws; // already enriched: slug, source, depth, signals, apply, example, sources, image
@@ -372,7 +392,7 @@ function indexHtml() {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css${v('styles.css')}" />
   <link rel="stylesheet" href="nav.css" />
 
   <script type="application/ld+json">${jsonLd()}</script>
@@ -467,7 +487,7 @@ ${storyHtml()}
 
 ${backTopHtml}
 
-  <script src="app.js"></script>
+  <script src="app.js${v('app.js')}"></script>
 </body>
 </html>
 `;
