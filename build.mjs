@@ -393,7 +393,7 @@ function indexHtml() {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css${v('styles.css')}" />
-  <link rel="stylesheet" href="nav.css" />
+  <link rel="stylesheet" href="nav.css${v('nav.css')}" />
 
   <script type="application/ld+json">${jsonLd()}</script>
 ${SITE.ga ? `  <!-- Google tag (gtag.js) -->
@@ -515,6 +515,10 @@ function editionLaw(l) {
             <span class="lw__name">${esc(l.name)}</span>
             <span class="lw__tag">${esc(l.tagline)}</span>
           </span>
+          <button class="lw__viewed" type="button" data-viewed-toggle aria-pressed="false" title="Mark this law as viewed">
+            <svg class="lw__check" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="lw__viewed-tx">Viewed</span>
+          </button>
           <span class="lw__chev" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
           </span>
@@ -634,8 +638,8 @@ function editionHtml({ buyerResources = false } = {}) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="edition.css" />
-  <link rel="stylesheet" href="nav.css" />
+  <link rel="stylesheet" href="edition.css${v('edition.css')}" />
+  <link rel="stylesheet" href="nav.css${v('nav.css')}" />
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
 ` : ""}</head>
@@ -660,6 +664,7 @@ ${navHtml("edition")}
     <div class="ed__controls">
       <button class="ed__btn" id="expandAll">Expand all</button>
       <button class="ed__btn ed__btn--ghost" id="collapseAll">Collapse all</button>
+      <button class="ed__viewed-count" id="edViewedCount" type="button" aria-pressed="false" hidden></button>
     </div>
   </header>
 
@@ -703,11 +708,63 @@ ${backTopHtml}
       var ca = document.getElementById('collapseAll');
       if (ea) ea.addEventListener('click', function () { all().forEach(function (d) { d.open = true; }); });
       if (ca) ca.addEventListener('click', function () { all().forEach(function (d) { d.open = false; }); });
-      all().forEach(function (d) {
+
+      // ---------- Viewed tracking (shared with the home page via localStorage) ----------
+      var VIEWED_KEY = 'loa:viewed:v1';
+      var laws = all();
+      var TOTAL = laws.length;
+      var viewed = {};
+      try {
+        var raw = localStorage.getItem(VIEWED_KEY);
+        if (raw) JSON.parse(raw).forEach(function (s) { viewed[s] = true; });
+      } catch (_) {}
+      function saveViewed() {
+        try { localStorage.setItem(VIEWED_KEY, JSON.stringify(Object.keys(viewed))); } catch (_) {}
+      }
+      var countEl = document.getElementById('edViewedCount');
+      var hideViewed = false;
+      function viewedN() { return Object.keys(viewed).length; }
+      function reflect(d) {
+        var on = !!viewed[d.id];
+        d.classList.toggle('is-viewed', on);
+        var b = d.querySelector('.lw__viewed');
+        if (b) b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      }
+      function applyHide() {
+        laws.forEach(function (d) { d.style.display = (hideViewed && viewed[d.id]) ? 'none' : ''; });
+      }
+      function updateCount() {
+        var n = viewedN();
+        if (!countEl) return;
+        countEl.hidden = n === 0;
+        countEl.textContent = n + ' of ' + TOTAL + ' viewed';
+        if (n === 0 && hideViewed) { hideViewed = false; countEl.setAttribute('aria-pressed', 'false'); applyHide(); }
+      }
+      function setViewed(d, on) {
+        if (on) viewed[d.id] = true; else delete viewed[d.id];
+        saveViewed(); reflect(d); updateCount(); applyHide();
+      }
+      laws.forEach(function (d) {
+        reflect(d);
+        var b = d.querySelector('.lw__viewed');
+        if (b) b.addEventListener('click', function (e) {
+          e.preventDefault(); e.stopPropagation();
+          setViewed(d, !viewed[d.id]);
+          track(viewed[d.id] ? 'law_marked_viewed' : 'law_unmarked_viewed', { law_id: d.id || '', edition_access: accessType });
+        });
         d.addEventListener('toggle', function () {
-          if (d.open) track('edition_law_open', { law_id: d.id || '', edition_access: accessType });
+          if (d.open) {
+            if (!viewed[d.id]) setViewed(d, true);
+            track('edition_law_open', { law_id: d.id || '', edition_access: accessType });
+          }
         });
       });
+      if (countEl) countEl.addEventListener('click', function () {
+        hideViewed = !hideViewed;
+        countEl.setAttribute('aria-pressed', hideViewed ? 'true' : 'false');
+        applyHide();
+      });
+      updateCount();
 
       function openHash() {
         if (!location.hash) return;
@@ -822,6 +879,9 @@ a{color:inherit;text-decoration:none}
 .ed__btn:hover{transform:translateY(-1px);opacity:.92}
 .ed__btn--ghost{color:var(--text);background:transparent;border-color:var(--border)}
 .ed__btn--ghost:hover{border-color:var(--dim)}
+.ed__viewed-count{font-family:var(--mono);font-size:12px;color:var(--dim);background:color-mix(in srgb,var(--accent) 10%,transparent);border:1px solid color-mix(in srgb,var(--accent) 26%,transparent);border-radius:99px;padding:8px 14px;cursor:pointer;transition:color .2s,background .2s,border-color .2s}
+.ed__viewed-count:hover{color:var(--text);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.ed__viewed-count[aria-pressed="true"]{color:#fff;background:color-mix(in srgb,var(--accent) 24%,transparent);border-color:color-mix(in srgb,var(--accent) 55%,transparent)}
 .buyer{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto 28px;padding:0 24px}
 .buyer>div{padding:20px 0 14px;border-top:1px solid var(--border)}
 .buyer__eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
@@ -847,9 +907,17 @@ a{color:inherit;text-decoration:none}
 .lw__head{flex:1;min-width:0}
 .lw__name{display:block;font-family:var(--serif);font-weight:500;font-size:19px;letter-spacing:-.01em}
 .lw__tag{display:block;font-family:var(--serif);font-style:italic;font-size:14px;color:var(--ac);margin-top:2px}
+.lw__viewed{flex:none;display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;font-weight:600;color:var(--faint);background:color-mix(in srgb,var(--faint) 10%,transparent);border:1px solid var(--border);border-radius:99px;padding:4px 9px 4px 7px;cursor:pointer;transition:color .2s,background .2s,border-color .2s}
+.lw__viewed:hover{color:var(--dim);border-color:color-mix(in srgb,var(--ac) 40%,var(--border))}
+.lw__check{width:13px;height:13px;flex:none;opacity:.5;transition:opacity .2s}
+.lw__viewed[aria-pressed="true"]{color:color-mix(in srgb,var(--ac) 80%,#fff);background:color-mix(in srgb,var(--ac) 16%,transparent);border-color:color-mix(in srgb,var(--ac) 45%,transparent)}
+.lw__viewed[aria-pressed="true"] .lw__check{opacity:1}
+.lw.is-viewed{border-color:color-mix(in srgb,var(--ac) 28%,var(--border))}
+.lw.is-viewed .lw__name{color:var(--dim)}
 .lw__chev{flex:none;color:var(--faint);transition:transform .25s var(--ease)}
 .lw__chev svg{width:18px;height:18px}
 .lw[open] .lw__chev{transform:rotate(180deg)}
+@media(max-width:560px){.lw__viewed-tx{display:none}}
 .lw__open{padding:0 20px 22px;border-top:1px solid var(--border)}
 .lw__fig{margin:18px 0;border-radius:12px;overflow:hidden;background:color-mix(in srgb,var(--ac) 6%,#0e1016);border:1px solid color-mix(in srgb,var(--ac) 16%,transparent)}
 .lw__fig img{display:block;width:100%;height:auto;max-height:520px;object-fit:contain}
@@ -1021,9 +1089,9 @@ function lawPageHtml(l) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/edition.css" />
-  <link rel="stylesheet" href="/law.css" />
-  <link rel="stylesheet" href="/nav.css" />
+  <link rel="stylesheet" href="/edition.css${v('edition.css')}" />
+  <link rel="stylesheet" href="/law.css${v('law.css')}" />
+  <link rel="stylesheet" href="/nav.css${v('nav.css')}" />
 
   <script type="application/ld+json">${lawJsonLd(l)}</script>
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
@@ -1186,9 +1254,9 @@ function categoryPageHtml(cat) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/edition.css" />
-  <link rel="stylesheet" href="/law.css" />
-  <link rel="stylesheet" href="/nav.css" />
+  <link rel="stylesheet" href="/edition.css${v('edition.css')}" />
+  <link rel="stylesheet" href="/law.css${v('law.css')}" />
+  <link rel="stylesheet" href="/nav.css${v('nav.css')}" />
   <script type="application/ld+json">${categoryJsonLd(cat, lawsHere)}</script>
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
@@ -1282,9 +1350,9 @@ function authorPageHtml() {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/edition.css" />
-  <link rel="stylesheet" href="/law.css" />
-  <link rel="stylesheet" href="/nav.css" />
+  <link rel="stylesheet" href="/edition.css${v('edition.css')}" />
+  <link rel="stylesheet" href="/law.css${v('law.css')}" />
+  <link rel="stylesheet" href="/nav.css${v('nav.css')}" />
   <script type="application/ld+json">${personJsonLd}</script>
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
@@ -1384,9 +1452,9 @@ function comparisonPageHtml() {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/edition.css" />
-  <link rel="stylesheet" href="/law.css" />
-  <link rel="stylesheet" href="/nav.css" />
+  <link rel="stylesheet" href="/edition.css${v('edition.css')}" />
+  <link rel="stylesheet" href="/law.css${v('law.css')}" />
+  <link rel="stylesheet" href="/nav.css${v('nav.css')}" />
   <script type="application/ld+json">${jsonLd}</script>
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>
@@ -1557,9 +1625,9 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/edition.css" />
-  <link rel="stylesheet" href="/law.css" />
-  <link rel="stylesheet" href="/nav.css" />
+  <link rel="stylesheet" href="/edition.css${v('edition.css')}" />
+  <link rel="stylesheet" href="/law.css${v('law.css')}" />
+  <link rel="stylesheet" href="/nav.css${v('nav.css')}" />
   <script type="application/ld+json">${productJsonLd(url)}</script>
 ${SITE.ga ? `  <script async src="https://www.googletagmanager.com/gtag/js?id=${SITE.ga}"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${SITE.ga}');</script>

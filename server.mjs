@@ -11,6 +11,20 @@ const DIST = join(ROOT, "dist");
 const PRODUCT_BUNDLE_ROOT = join(ROOT, "product", "ai-agent-audit-kit", "build", "ai-agent-audit-kit-50-laws-edition");
 const PRODUCT_RELEASE_ZIP = join(ROOT, "product", "ai-agent-audit-kit", "releases", "ai-agent-audit-kit-50-laws-edition.zip");
 
+// Cache-busting for server-rendered pages: static assets are cached for a year
+// (immutable) only when their URL carries a content hash, so the URL must change
+// when the file does. Hash the built file once and reuse it.
+const _distVerCache = {};
+function distVer(file) {
+  if (file in _distVerCache) return _distVerCache[file];
+  let token = "";
+  try {
+    token = "?v=" + createHash("sha1").update(readFileSync(join(DIST, file))).digest("hex").slice(0, 8);
+  } catch (_) {}
+  _distVerCache[file] = token;
+  return token;
+}
+
 function loadLocalEnv() {
   const envPath = join(ROOT, ".env.local");
   if (!existsSync(envPath)) return;
@@ -1062,9 +1076,9 @@ function kitPageHtml(objectPath, rawContent) {
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;450;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/edition.css">
-  <link rel="stylesheet" href="/law.css">
-  <link rel="stylesheet" href="/nav.css">
+  <link rel="stylesheet" href="/edition.css${distVer('edition.css')}">
+  <link rel="stylesheet" href="/law.css${distVer('law.css')}">
+  <link rel="stylesheet" href="/nav.css${distVer('nav.css')}">
   <style>
 .kit__body{margin-top:8px}
 .kit__body p{margin:10px 0;line-height:1.7}
@@ -1218,8 +1232,8 @@ function rewriteProtectedHtml(html) {
     .replace(/<link rel="canonical" href="https:\/\/laws\.deleg8\.dev\/edition\.html" \/>/, '<meta name="robots" content="noindex, nofollow" />')
     .replaceAll('href="/edition.html"', 'href="/paid/edition.html"')
     .replaceAll('href="edition.html"', 'href="/paid/edition.html"')
-    .replaceAll('href="edition.css"', 'href="/paid/edition.css"')
-    .replaceAll('href="nav.css"', 'href="/paid/nav.css"')
+    .replace(/href="edition\.css(\?[^"]*)?"/g, 'href="/paid/edition.css$1"')
+    .replace(/href="nav\.css(\?[^"]*)?"/g, 'href="/paid/nav.css$1"')
     .replaceAll('href="favicon.svg"', 'href="/favicon.svg"')
     .replaceAll('src="assets/edition/', 'src="/paid/assets/edition/');
 }
@@ -1358,10 +1372,16 @@ function serveStatic(req, res) {
     return;
   }
   const ext = extname(filePath);
-  const immutable = [".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico"].includes(ext);
+  const longCacheable = [".css", ".js", ".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico"].includes(ext);
+  // Only fingerprinted URLs (…?v=hash) get the year-long immutable cache. A bare
+  // asset URL must stay revalidatable, or a content change can never reach a
+  // browser that cached the old bytes.
+  const versioned = url.searchParams.has("v");
   const headers = {
     "Content-Type": MIME[ext] || "application/octet-stream",
-    "Cache-Control": immutable ? "public, max-age=31536000, immutable" : "public, max-age=300",
+    "Cache-Control": longCacheable
+      ? (versioned ? "public, max-age=31536000, immutable" : "public, max-age=3600")
+      : "public, max-age=300",
   };
   if (url.pathname.startsWith("/sandbox/")) headers["X-Robots-Tag"] = "noindex, nofollow";
   res.writeHead(200, headers);
