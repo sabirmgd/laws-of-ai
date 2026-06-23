@@ -753,10 +753,7 @@ ${backTopHtml}
           track(viewed[d.id] ? 'law_marked_viewed' : 'law_unmarked_viewed', { law_id: d.id || '', edition_access: accessType });
         });
         d.addEventListener('toggle', function () {
-          if (d.open) {
-            if (!viewed[d.id]) setViewed(d, true);
-            track('edition_law_open', { law_id: d.id || '', edition_access: accessType });
-          }
+          if (d.open) track('edition_law_open', { law_id: d.id || '', edition_access: accessType });
         });
       });
       if (countEl) countEl.addEventListener('click', function () {

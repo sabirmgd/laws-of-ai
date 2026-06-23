@@ -225,8 +225,6 @@
     if (push && card.id && location.hash !== "#" + card.id) {
       history.pushState(null, "", "#" + card.id);
     }
-    // Smart: opening a law marks it viewed (kept in localStorage).
-    if (card.id && !viewed.has(card.id)) setViewed(card, true);
     track("law_open", { law_slug: card.id, category: card.dataset.category });
   }
 
