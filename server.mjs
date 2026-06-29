@@ -1398,6 +1398,18 @@ createServer(async (req, res) => {
       return;
     }
 
+    // Canonical host: permanently redirect the legacy domain and the www alias
+    // to the primary apex domain, preserving the path and query string.
+    const reqHostname = String(req.headers.host || "").toLowerCase().split(":")[0];
+    if (reqHostname === "laws.deleg8.dev" || reqHostname === "www.lawsofagents.ai") {
+      res.writeHead(301, {
+        Location: `https://lawsofagents.ai${url.pathname}${url.search}`,
+        "Cache-Control": "public, max-age=3600",
+      });
+      res.end();
+      return;
+    }
+
     if (url.pathname === "/api/newsletter") {
       await handleNewsletter(req, res);
       return;
