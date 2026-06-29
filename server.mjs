@@ -54,7 +54,7 @@ function flag(name, fallback = false) {
 }
 
 const PORT = Number(process.env.PORT || 8080);
-const SITE_URL = process.env.SITE_URL || "https://laws.deleg8.dev/";
+const SITE_URL = process.env.SITE_URL || "https://lawsofagents.ai/";
 const PROJECT_ID = process.env.FIRESTORE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || "deleg8-dev";
 const FIRESTORE_DATABASE = process.env.FIRESTORE_DATABASE || "(default)";
 const PROTECTED_BUCKET = process.env.PROTECTED_BUCKET || "";

@@ -218,7 +218,7 @@ const html = `<!DOCTYPE html>
     <p class="cover__sub">${esc(book.subtitle)}</p>
     <p class="cover__meta">50 laws · the mechanism · warning signs · apply-it recipes · 100+ sources</p>
     <div class="cover__dots">${dots}</div>
-    <div class="cover__by"><span>By ${esc(SITE.author)}</span><span>laws.deleg8.dev</span></div>
+    <div class="cover__by"><span>By ${esc(SITE.author)}</span><span>lawsofagents.ai</span></div>
   </div></div>
 
   <div class="intro">
@@ -248,7 +248,7 @@ const html = `<!DOCTYPE html>
   <div class="closing">
     <h2>Build agents people actually trust.</h2>
     <p>These fifty laws are the short version. The real work is applying them under pressure, on your own stack, when the demo meets production. Keep this guide close and revisit it the next time something breaks in a way you have seen before.</p>
-    <p class="cta">Read the living deck at laws.deleg8.dev<br/>New laws are added as they earn their place.</p>
+    <p class="cta">Read the living deck at lawsofagents.ai<br/>New laws are added as they earn their place.</p>
     <p class="fine">Laws of AI Agents · The Expanded Field Guide · by ${esc(SITE.author)} · ${"2026"}. Inspired by the format of Laws of UX.</p>
   </div>
 

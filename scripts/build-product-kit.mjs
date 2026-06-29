@@ -136,7 +136,7 @@ Agents are becoming an interface to real work. They read, decide, call tools, wr
 
 No PDF is included. The illustrated digital edition is protected online at:
 
-https://laws.deleg8.dev/access
+https://lawsofagents.ai/access
 
 ## How To Use
 
