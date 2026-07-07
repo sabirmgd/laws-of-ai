@@ -571,6 +571,7 @@ a:hover { color: var(--accent); }
   font-style: italic;
 }
 .modal__body { margin-top: 28px; display: grid; gap: 24px; }
+.modal__body[hidden] { display: none; }
 .modal__block h3 {
   font-family: var(--mono);
   font-size: 11px;
@@ -931,3 +932,94 @@ a:hover { color: var(--accent); }
   .filters__meta { flex: none; }
   .filters__viewed { white-space: nowrap; }
 }
+
+/* ---------- freemium: locked cards, grid note, modal CTA ---------- */
+.grid__note {
+  max-width: var(--maxw);
+  margin: 0 auto 4px;
+  padding: 0 24px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
+  scroll-margin-top: 90px;
+}
+.grid__note span:first-child { color: var(--text-dim); }
+.card__lock {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--text);
+  background: rgba(10, 11, 15, 0.72);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(4px);
+}
+.card__lock svg { width: 15px; height: 15px; }
+.card__free {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5ed3a8;
+  background: rgba(10,11,15,0.72);
+  border: 1px solid color-mix(in srgb, #5ed3a8 40%, transparent);
+  border-radius: 999px;
+  padding: 4px 9px;
+  backdrop-filter: blur(4px);
+}
+.card--locked .card__media { opacity: 0.4; filter: grayscale(0.85); }
+.card--locked:hover .card__media { opacity: 0.52; }
+.card--locked .card__lock { width: 34px; height: 34px; background: rgba(10,11,15,0.85); }
+.card--locked .card__lock svg { width: 17px; height: 17px; }
+.card--locked .card__name { color: var(--text-dim); }
+.card--locked .card__cue { color: var(--text-faint); }
+.modal__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 24px;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: #0a0b0f;
+  background: var(--text);
+  border: 1px solid var(--text);
+  transition: transform 0.2s var(--ease), filter 0.2s;
+}
+.modal__cta:hover { transform: translateY(-1px); filter: brightness(0.94); }
+.modal__cta--locked { color: #0a0b0f; background: var(--accent); border-color: var(--accent); }
+.modal__cta--locked:hover { filter: brightness(1.06); }
+
+/* ---------- locked law popup panel ---------- */
+.modal__locked {
+  margin-top: 28px;
+  padding: 28px 24px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--card));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.modal__locked[hidden] { display: none; }
+.modal__locked-ic { color: var(--accent); display: inline-flex; }
+.modal__locked-ic svg { width: 30px; height: 30px; }
+.modal__locked-h { font-family: var(--serif); font-size: 22px; font-weight: 500; color: var(--text); }
+.modal__locked-sub { color: var(--text-dim); font-size: 15px; max-width: 46ch; }
+

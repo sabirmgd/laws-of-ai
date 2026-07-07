@@ -82,9 +82,17 @@ const sandboxProductPath = () => `/sandbox/${PRODUCT.slug || "ai-agent-audit-kit
 const editionEntryPath = () => freeEditionEnabled() ? "/edition.html" : "/access";
 const productIsFree = () => PRODUCT.free === true || /^free\b/i.test(String(PRODUCT.price || "")) || flag("PRODUCT_FREE_ENABLED", false);
 const checkoutHref = () => productIsFree() ? "/kit/START-HERE.md" : (PRODUCT.checkoutUrl || "#paypal-checkout");
-const checkoutLabel = () => productIsFree() ? "Open the free kit" : `Get the kit for ${PRODUCT.price || "$14.90"}`;
+const checkoutLabel = () => productIsFree() ? "Open the free kit" : `Unlock all ${laws.length} laws — ${PRODUCT.price || "$14.90"}`;
+
+// ---------- freemium gating ----------
+const freeLawCount = () => laws.filter((l) => l.free).length;
+const lockedLawCount = () => laws.filter((l) => !l.free).length;
+// Single primary CTA everywhere: send buyers to the checkout page (the product
+// page hosts the PayPal button). Label always reads "Unlock all N laws — $price".
+const unlockHref = () => (productEnabled() ? productPath() : editionEntryPath());
+const unlockLabel = () => `Unlock all ${laws.length} laws — ${PRODUCT.price || "$14.90"}`;
 const productPriceLabel = () => productIsFree() ? "Free" : (PRODUCT.price || "$14.90");
-const productPriceSub = () => productIsFree() ? "Public during launch" : "skill + protected edition";
+const productPriceSub = () => productIsFree() ? "Public during launch" : "the complete book + audit kit";
 const productProviderLabel = () => productIsFree() ? "No checkout required" : `Checkout via ${PRODUCT.checkoutProvider || "PayPal"}`;
 
 // ---------- category icons (line, currentColor) ----------
@@ -170,12 +178,18 @@ function cardHtml(l) {
             <img class="card__img" loading="lazy" decoding="async" width="${l.image.width}" height="${l.image.height}" src="/assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" />
           </div>`
     : `<div class="card__media card__media--icon"><span class="card__icon">${icon(cat.icon)}</span></div>`;
-  return `        <article class="card" id="${l.slug}"
+  const ctaHref = l.free ? `/law/${l.slug}/` : unlockHref();
+  const ctaLabel = l.free ? "Read the full law" : unlockLabel();
+  return `        <article class="card${l.free ? "" : " card--locked"}" id="${l.slug}"
           data-category="${esc(l.category)}"
+          data-locked="${l.free ? "" : "1"}"
+          data-cta-href="${esc(ctaHref)}"
+          data-cta-label="${esc(ctaLabel)}"
           data-source-title="${esc(src.title || "")}"
           data-source-author="${esc(src.author || "")}"
           data-source-url="${esc(src.url || "")}"
           style="--card-accent:${accent};--tag-color:${accent}">
+          ${l.free ? `<span class="card__free" aria-label="Free to read">Free</span>` : `<span class="card__lock" aria-label="Locked — unlock with the book">${lockIcon}</span>`}
           ${media}
           <div class="card__body">
             <div class="card__head">
@@ -195,7 +209,7 @@ function cardHtml(l) {
             </div>
             <div class="card__foot">
               <span class="tag">${esc(cat.name || "")}</span>
-              <span class="card__cue" aria-hidden="true">Read the law ${arrow}</span>
+              <span class="card__cue" aria-hidden="true">${l.free ? "Read the law" : "Locked · unlock"} ${arrow}</span>
             </div>
           </div>
         </article>`;
@@ -225,7 +239,7 @@ function newsletterHtml() {
   return `  <section class="signup" id="subscribe" aria-label="Newsletter signup">
     <div class="signup__in">
       <p class="signup__eyebrow">Free 5-day agent audit course</p>
-      <h2 class="signup__title">Learn the failure modes before you buy the kit</h2>
+      <h2 class="signup__title">Learn the failure modes before you unlock all ${laws.length}</h2>
       <p class="signup__sub">Five practical lessons on where AI agents break, each with a real example and a fix. No spam, unsubscribe anytime.</p>
       <form class="signup__form" action="${action}" method="post"${target}>
         ${hidden}
@@ -239,8 +253,8 @@ function newsletterHtml() {
 function heroCtaHtml() {
   if (!productEnabled() && !(SITE.newsletter && SITE.newsletter.action)) return "";
   return `      <div class="hero__actions">
-        ${productEnabled() ? `<a class="hero__btn" href="${productPath()}">Audit your agent free ${arrow}</a>` : ""}
-        ${SITE.newsletter?.action ? `<a class="hero__btn hero__btn--ghost" href="#subscribe">Free 5-day course</a>` : ""}
+        ${productEnabled() ? `<a class="hero__btn" href="${unlockHref()}">${unlockLabel()} ${arrow}</a>` : ""}
+        ${productEnabled() ? `<a class="hero__btn hero__btn--ghost" href="#main">Read ${freeLawCount()} laws free</a>` : (SITE.newsletter?.action ? `<a class="hero__btn hero__btn--ghost" href="#subscribe">Free 5-day course</a>` : "")}
       </div>`;
 }
 
@@ -309,11 +323,10 @@ function navHtml(active) {
       </a>
       <nav class="nav__links" aria-label="Primary">
         ${link("/#main", "All laws", "home")}
-        ${productEnabled() ? link(productPath(), "Audit kit", "product") : ""}
-        ${link(editionEntryPath(), "Digital edition", "edition")}
+        ${productEnabled() ? link(productPath(), "Get the book", "product") : link(editionEntryPath(), "Digital edition", "edition")}
         ${link("/#references", "Sources", "refs")}
       </nav>
-      <a class="nav__cta" href="${productEnabled() ? productPath() : editionEntryPath()}">${productEnabled() ? "Audit your agent" : "Read the edition"} ${arrow}</a>
+      <a class="nav__cta" href="${productEnabled() ? unlockHref() : editionEntryPath()}">${productEnabled() ? `Unlock all ${laws.length} laws` : "Read the edition"} ${arrow}</a>
     </div>
   </header>`;
 }
@@ -416,7 +429,7 @@ ${navHtml("home")}
       <p class="hero__eyebrow">Field notes · ${esc(SITE.version || "v1")}</p>
       <h1 class="hero__title">${esc(DATA.title)}</h1>
       <p class="hero__subtitle">${esc(DATA.subtitle)}</p>
-      <p class="hero__intro">${esc(DATA.intro)}</p>
+      <p class="hero__intro">${laws.length} field-tested laws for building AI agents that actually work — each with the mechanism, the warning signs, a worked example, and how to apply it.${productEnabled() ? ` Read ${freeLawCount()} free; unlock all ${laws.length} for ${esc(PRODUCT.price || "$14.90")}.` : ""}</p>
       <div class="hero__meta">
         <span class="hero__count">${laws.length} laws</span>
         <span class="hero__dot">·</span>
@@ -428,9 +441,7 @@ ${heroCtaHtml()}
     </div>
   </header>
 
-${productEnabled() ? productPromoHtml() : ""}
-
-${editionPromoHtml()}
+${productEnabled() ? "" : editionPromoHtml()}
 
   <div class="filterbar" id="filterbar">
     <div class="filterbar__in">
@@ -446,6 +457,7 @@ ${editionPromoHtml()}
     </div>
   </div>
 
+${productEnabled() ? `  <p class="grid__note" id="laws"><span>${freeLawCount()} laws free</span> · <span>${lockedLawCount()} unlock with the book</span></p>` : ""}
   <main class="grid" id="main" tabindex="-1">
 ${laws.map(cardHtml).join("\n")}
   </main>
@@ -471,7 +483,7 @@ ${storyHtml()}
       </div>
       <h2 class="modal__name" id="modal-name"></h2>
       <p class="modal__tagline" id="modal-tagline"></p>
-      <div class="modal__body">
+      <div class="modal__body" id="modal-body">
         <div class="modal__block">
           <h3>The principle</h3>
           <p id="modal-principle"></p>
@@ -481,7 +493,13 @@ ${storyHtml()}
           <p id="modal-takeaway"></p>
         </div>
       </div>
+      <div class="modal__locked" id="modal-locked" hidden>
+        <span class="modal__locked-ic">${lockIcon}</span>
+        <p class="modal__locked-h">This law is locked</p>
+        <p class="modal__locked-sub">It's part of the book. Unlock the mechanism behind it, the warning signs, a worked example, and an apply-it recipe — for this law and all ${laws.length}.</p>
+      </div>
       <a class="modal__source" id="modal-source" target="_blank" rel="noopener" hidden></a>
+      <a class="modal__cta" id="modal-cta" href="#">Read the full law ${arrow}</a>
     </article>
   </div>
 
@@ -501,7 +519,28 @@ function editionImg(l) {
   return `<figure class="lw__fig"><img loading="lazy" decoding="async" width="${l.image.width}" height="${l.image.height}" src="assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`;
 }
 
-function editionLaw(l) {
+const lockIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10.5" width="16" height="9.5" rx="2"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>';
+
+function lockedLaw(l) {
+  const cat = catById[l.category] || {};
+  return `      <div class="lw lw--locked" id="${l.slug}" style="--ac:${cat.accent || "#888"}">
+        <div class="lw__sum lw__sum--locked">
+          <span class="lw__no">${pad(l.number)}</span>
+          <span class="lw__head">
+            <span class="lw__name">${esc(l.name)}</span>
+            <span class="lw__tag">${esc(l.tagline)}</span>
+          </span>
+          <span class="lw__lock">${lockIcon}</span>
+        </div>
+        <div class="lw__locked">
+          <p class="lw__locked-tx">Locked · unlock the mechanism, warning signs, a worked example, and the apply-it recipe.</p>
+          <a class="lw__unlock" href="${unlockHref()}">${unlockLabel()} ${arrow}</a>
+        </div>
+      </div>`;
+}
+
+function editionLaw(l, gated = false) {
+  if (gated && !l.free) return lockedLaw(l);
   const cat = catById[l.category] || {};
   const signals = l.signals.map((s) => `<li>${esc(s)}</li>`).join("");
   const apply = l.apply.map((s) => `<li>${esc(s)}</li>`).join("");
@@ -539,7 +578,7 @@ function editionLaw(l) {
       </details>`;
 }
 
-function editionBody() {
+function editionBody(gated = false) {
   return DATA.categories
     .map((c, i) => {
       const ls = lawsInCat(c.id);
@@ -551,7 +590,7 @@ function editionBody() {
           <p class="part__blurb">${esc(c.blurb)}</p>
         </div>
       </section>`;
-      return divider + "\n" + ls.map(editionLaw).join("\n");
+      return divider + "\n" + ls.map((l) => editionLaw(l, gated)).join("\n");
     })
     .join("\n");
 }
@@ -617,8 +656,14 @@ ${kitResourceLinks().map(([label, href, note]) => `        <a href="${href}"><sp
 `;
 }
 
-function editionHtml({ buyerResources = false } = {}) {
+function editionHtml({ buyerResources = false, gated = false } = {}) {
   const canonical = SITE.url + "/edition.html";
+  const gateBanner = gated
+    ? `  <div class="ed__gate">
+    <p class="ed__gate-tx"><strong>${freeLawCount()} laws are open to read.</strong> The other ${lockedLawCount()} are locked — unlock the full deep dives and the audit kit.</p>
+    <a class="ed__gate-cta" href="${unlockHref()}">${unlockLabel()} ${arrow}</a>
+  </div>`
+    : "";
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -669,6 +714,7 @@ ${navHtml("edition")}
   </header>
 
 ${buyerResources ? buyerResourcesHtml() : ""}
+${gateBanner}
 
   <aside class="ed__toc" id="edToc" aria-label="Contents">
     <p class="ed__toc-h">Contents</p>
@@ -683,7 +729,7 @@ ${editionToc()}
   </button>
 
   <main class="ed__main" id="main">
-${editionBody()}
+${editionBody(gated)}
   </main>
 
   <footer class="ed__foot">
@@ -830,13 +876,24 @@ ${backTopHtml}
 `;
 }
 
+// Single offer band: the book (all 50 in full) + the audit kit bonus.
 function editionPromoHtml() {
-  return `  <section class="promo" aria-label="Digital edition">
+  if (!productEnabled()) {
+    return `  <section class="promo" aria-label="The book">
     <div class="promo__in">
-      <p class="promo__eyebrow">${productEnabled() && !productIsFree() ? "Protected Buyer Edition" : "The Expanded Digital Edition"}</p>
+      <p class="promo__eyebrow">The Expanded Edition</p>
       <h2 class="promo__title">Every law, in full, with a diagram for each.</h2>
-      <p class="promo__sub">For each law you get the mechanism underneath it, the warning signs, a worked example, a recipe for applying it, and the sources. All ${laws.length}, in one place${productEnabled() && !productIsFree() ? ", for paid buyers" : ""}.</p>
-      <a class="promo__btn" href="${editionEntryPath()}">${productEnabled() && !productIsFree() ? "Unlock the digital edition" : "Read every law in full"} ${arrow}</a>
+      <p class="promo__sub">The mechanism underneath each law, the warning signs, a worked example, a recipe for applying it, and the sources. All ${laws.length}, in one place.</p>
+      <a class="promo__btn" href="${editionEntryPath()}">Read every law in full ${arrow}</a>
+    </div>
+  </section>`;
+  }
+  return `  <section class="promo promo--product" aria-label="Unlock all ${laws.length} laws">
+    <div class="promo__in">
+      <p class="promo__eyebrow">The book · ${esc(productPriceLabel())}</p>
+      <h2 class="promo__title">Read ${freeLawCount()} free. Unlock all ${laws.length}.</h2>
+      <p class="promo__sub">Every law in full — the mechanism underneath it, the warning signs, a worked example, and a recipe for applying it — plus the AI Agent Audit Kit to run the ${laws.length} laws against your own agents. One-time purchase, lifetime access.</p>
+      <a class="promo__btn" href="${unlockHref()}">${unlockLabel()} ${arrow}</a>
     </div>
   </section>`;
 }
@@ -932,6 +989,28 @@ a{color:inherit;text-decoration:none}
 .lw__src li{margin:0 0 6px}
 .lw__src a{font-family:var(--mono);font-size:13px;color:var(--ac);display:inline-flex;align-items:center;gap:6px}
 .lw__src a:hover{text-decoration:underline}
+/* freemium: gate banner + locked law rows */
+.ed__gate{position:relative;z-index:2;max-width:var(--maxw);margin:0 auto 20px;padding:18px 22px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;border:1px solid color-mix(in srgb,var(--accent) 34%,transparent);border-radius:16px;background:color-mix(in srgb,var(--accent) 9%,var(--card))}
+.ed__gate-tx{font-size:14.5px;color:var(--dim);max-width:52ch}
+.ed__gate-tx strong{color:var(--text);font-weight:600}
+.ed__gate-cta{flex:none;font-family:var(--mono);font-size:13px;font-weight:600;color:#0a0b0f;background:var(--accent);border-radius:99px;padding:10px 18px;display:inline-flex;align-items:center;gap:7px;transition:transform .2s var(--ease),filter .2s}
+.ed__gate-cta:hover{transform:translateY(-1px);filter:brightness(1.06)}
+.lw--locked{opacity:.96}
+.lw__sum--locked{display:flex;align-items:center;gap:16px;padding:18px 20px}
+.lw--locked .lw__name{color:var(--dim)}
+.lw__lock{margin-left:auto;flex:none;color:var(--faint);display:inline-flex}
+.lw__lock svg{width:18px;height:18px}
+.lw__locked{padding:0 20px 18px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;border-top:1px dashed var(--border);margin-top:2px;padding-top:14px}
+.lw__locked-tx{font-family:var(--mono);font-size:12.5px;color:var(--faint);max-width:46ch}
+.lw__unlock{flex:none;font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--ac);display:inline-flex;align-items:center;gap:6px}
+.lw__unlock:hover{text-decoration:underline}
+.law__lock{margin:20px 0;padding:22px;border:1px solid color-mix(in srgb,var(--ac) 30%,transparent);border-radius:16px;background:color-mix(in srgb,var(--ac) 7%,var(--card));display:flex;flex-direction:column;align-items:flex-start;gap:12px}
+.law__lock-ic{color:var(--ac);display:inline-flex}
+.law__lock-ic svg{width:26px;height:26px}
+.law__lock-tx{color:var(--dim);font-size:15px;max-width:56ch}
+.law__unlock{font-family:var(--mono);font-size:13px;font-weight:600;color:#0a0b0f;background:var(--ac);border-radius:99px;padding:11px 20px;display:inline-flex;align-items:center;gap:7px;transition:transform .2s var(--ease),filter .2s}
+.law__unlock:hover{transform:translateY(-1px);filter:brightness(1.06)}
+@media(max-width:560px){.ed__gate,.lw__locked{flex-direction:column;align-items:flex-start}}
 .ed__foot{padding:48px 24px 64px;border-top:1px solid var(--border);margin-top:54px;color:var(--faint);font-family:var(--mono);font-size:12.5px;text-align:center}
 .ed__foot-sub{margin-top:8px}
 .ed__foot a:hover{color:var(--accent)}
@@ -1031,14 +1110,27 @@ function lawPageHtml(l) {
   const cat = catById[l.category] || {};
   const accent = cat.accent || "#7c9cff";
   const url = `${SITE.url}/law/${l.slug}/`;
+  const gated = productEnabled() && !l.free;
   const signals = (l.signals || []).map((s) => `<li>${esc(s)}</li>`).join("");
   const apply = (l.apply || []).map((s) => `<li>${esc(s)}</li>`).join("");
   const sources = (l.sources || [])
     .map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener" data-track="source_click" data-source-url="${esc(s.url)}">${esc(s.title)}${s.author ? ` · ${esc(s.author)}` : ""} ${arrow}</a></li>`)
     .join("");
-  const img = l.image
+  // Locked laws hide the diagram (it visualizes the paid mechanism).
+  const img = (l.image && !gated)
     ? `<figure class="lw__fig"><img loading="lazy" decoding="async" width="${l.image.width}" height="${l.image.height}" src="/assets/edition/${l.image.file}" alt="Diagram explaining ${esc(l.name)}" /></figure>`
     : "";
+  // Free laws show the full deep dive; locked laws show an unlock block instead.
+  const deepBlock = gated
+    ? `<div class="law__lock">
+        <span class="law__lock-ic">${lockIcon}</span>
+        <p class="law__lock-tx">The mechanism, the warning signs, a worked example, and the apply-it recipe for this law are in the complete edition.</p>
+        <a class="law__unlock" href="${unlockHref()}">${unlockLabel()} ${arrow}</a>
+      </div>`
+    : `${l.depth ? `<h2 class="lw__lbl">Why it happens</h2><p>${esc(l.depth)}</p>` : ""}
+      ${signals ? `<h2 class="lw__lbl">Watch for</h2><ul class="lw__ul">${signals}</ul>` : ""}
+      ${l.example ? `<div class="lw__call"><p class="lw__lbl lw__lbl--ac">In practice</p><p>${esc(l.example)}</p></div>` : ""}
+      ${apply ? `<h2 class="lw__lbl lw__lbl--ac">Apply it</h2><ol class="lw__ol">${apply}</ol>` : ""}`;
   const related = relatedLaws(l, 3)
     .map((r) => {
       const rcat = catById[r.category] || {};
@@ -1120,12 +1212,9 @@ ${navHtml("home")}
     <section class="law__body">
       <h2 class="lw__lbl">The principle</h2>
       <p>${esc(l.principle)}</p>
-      ${l.depth ? `<h2 class="lw__lbl">Why it happens</h2><p>${esc(l.depth)}</p>` : ""}
-      ${signals ? `<h2 class="lw__lbl">Watch for</h2><ul class="lw__ul">${signals}</ul>` : ""}
-      ${l.example ? `<div class="lw__call"><p class="lw__lbl lw__lbl--ac">In practice</p><p>${esc(l.example)}</p></div>` : ""}
-      ${apply ? `<h2 class="lw__lbl lw__lbl--ac">Apply it</h2><ol class="lw__ol">${apply}</ol>` : ""}
-      <div class="lw__call lw__call--take"><p class="lw__lbl lw__lbl--ac">The takeaway</p><p>${esc(l.takeaway)}</p></div>
-      ${sources ? `<h2 class="lw__lbl">Sources and further reading</h2><ul class="lw__src">${sources}</ul>` : ""}
+      ${deepBlock}
+      ${gated ? "" : `<div class="lw__call lw__call--take"><p class="lw__lbl lw__lbl--ac">The takeaway</p><p>${esc(l.takeaway)}</p></div>`}
+      ${!gated && sources ? `<h2 class="lw__lbl">Sources and further reading</h2><ul class="lw__src">${sources}</ul>` : ""}
     </section>
 
     <section class="rel" aria-label="Related laws">
@@ -1136,15 +1225,14 @@ ${related}
     </section>
 
     <section class="law__more">
-      ${productEnabled() ? `<a class="law__cta" href="${productPath()}">Get the audit kit ${arrow}</a>` : ""}
-      <a class="law__cta${productEnabled() ? " law__cta--ghost" : ""}" href="${editionEntryPath()}">${productEnabled() ? "Access the buyer edition" : "Read every law in the digital edition"} ${arrow}</a>
+      ${productEnabled() ? `<a class="law__cta" href="${unlockHref()}">${unlockLabel()} ${arrow}</a>` : `<a class="law__cta" href="${editionEntryPath()}">Read every law in the digital edition ${arrow}</a>`}
       <a class="law__cta law__cta--ghost" href="/">Back to all ${laws.length} laws</a>
     </section>
   </article>
 
   <footer class="ed__foot">
     <p>${esc(SITE.name)} · by <a href="/sabir/">${esc(SITE.author)}</a> · ${YEAR}</p>
-    <p class="ed__foot-sub"><a href="/">All laws</a> · <a href="${editionEntryPath()}">Digital edition</a> · Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></p>
+    <p class="ed__foot-sub"><a href="/">All laws</a>${productEnabled() ? ` · <a href="${unlockHref()}">Get the book</a>` : ` · <a href="${editionEntryPath()}">Digital edition</a>`} · Inspired by the format of <a href="https://lawsofux.com" target="_blank" rel="noopener">Laws of UX</a></p>
   </footer>
 
 ${backTopHtml}
@@ -1174,6 +1262,10 @@ ${backTopHtml}
       });
       // log the law open as a page-level event so funnel reports work
       t('law_view',{law_slug:location.pathname});
+      // Session-aware CTAs — paid users see different copy
+      (function(){
+        fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.ok?r.json():Promise.reject(r)}).then(function(d){if(!d.authenticated)return;var A='<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';var n=document.querySelector('.nav__cta');if(n){n.setAttribute('href','/paid/edition.html');n.innerHTML='Read the edition '+A};var b=document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');if(b){b.setAttribute('href','/paid/edition.html');b.textContent='Read the edition'};var f=document.querySelector('.ed__foot-sub a[href*="ai-agent-audit-kit"]');if(f)f.setAttribute('href','/paid/edition.html');document.querySelectorAll('.law__cta,.law__unlock').forEach(function(e){e.setAttribute('href','/paid/edition.html');e.innerHTML='Read the full edition '+A})}).catch(function(){});
+      })();
     })();
   </script>
 </body>
@@ -1281,9 +1373,9 @@ ${list}
       </div>
     </section>
     <section class="law__more">
-      ${productEnabled() ? `<a class="law__cta" href="${productPath()}">Get the audit kit ${arrow}</a>` : ""}
+      ${productEnabled() ? `<a class="law__cta" href="${unlockHref()}">${unlockLabel()} ${arrow}</a>` : ""}
       <a class="law__cta${productEnabled() ? " law__cta--ghost" : ""}" href="/">All ${laws.length} laws ${arrow}</a>
-      <a class="law__cta law__cta--ghost" href="${editionEntryPath()}">Digital edition</a>
+      ${productEnabled() ? "" : `<a class="law__cta law__cta--ghost" href="${editionEntryPath()}">Digital edition</a>`}
     </section>
   </article>
 
@@ -1297,6 +1389,10 @@ ${backTopHtml}
       function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
       window.addEventListener('scroll',s,{passive:true});s();
       if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
+      // Session-aware CTAs
+      (function(){
+        fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.ok?r.json():Promise.reject(r)}).then(function(d){if(!d.authenticated)return;var A='<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';var n=document.querySelector('.nav__cta');if(n){n.setAttribute('href','/paid/edition.html');n.innerHTML='Read the edition '+A};var b=document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');if(b){b.setAttribute('href','/paid/edition.html');b.textContent='Read the edition'};document.querySelectorAll('.law__cta').forEach(function(e){e.setAttribute('href','/paid/edition.html');e.innerHTML='Read the full edition '+A})}).catch(function(){});
+      })();
     })();
   </script>
 </body>
@@ -1550,17 +1646,12 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
     "This bundle turns the online 50 Laws of AI Agents edition into a working audit process. It is not a magic scanner. It reviews evidence from where the agent actually lives: code, workflow exports, prompts, tools, traces, evals, screenshots, or transcripts."
   ];
   const included = [
-    "Installable ai-agent-audit skill",
-    "Codex/Claude-ready skill folder",
-    "Full 50-law audit rubric",
-    "Repo, workflow, SDK/API, black-box, and client-report audit modes",
-    "Agent audit intake checklist",
-    "Platform-specific evidence checklist",
-    "Audit report template",
-    "Copy-paste audit prompt for non-Codex/Claude users",
-    "Sample audit of a broken agent",
-    "Codex/Claude install instructions",
-    "Free public links to every skill file during launch",
+    `All ${laws.length} laws in full — the ${freeLawCount()} free plus the ${lockedLawCount()} locked deep-dives`,
+    "For every law: the mechanism, the warning signs, a worked example, and an apply-it recipe",
+    "Lifetime access to the protected digital edition (read straight through)",
+    "Bonus — the AI Agent Audit Kit: installable skill for Codex & Claude",
+    `Full ${laws.length}-law audit rubric, intake checklist, and evidence checklist`,
+    "Audit report template, copy-paste prompt, and a sample audit of a broken agent",
   ];
   const checks = [
     "Context, stale data, and long-context failure modes",
@@ -1593,9 +1684,7 @@ function productPageHtml({ url = productUrl(), noindex = false, testPage = false
     ? ""
     : `<div class="product__setup product__checkout" id="paypal-checkout">
         <p class="lw__lbl lw__lbl--ac">Secure checkout</p>
-        <p>Pay once with PayPal or card. After capture, this browser unlocks the protected digital edition and your checkout email becomes the access email.</p>
-        <label class="product__email-label" for="buyer-email">Checkout email</label>
-        <input class="product__email" id="buyer-email" type="email" placeholder="you@example.com" autocomplete="email" required />
+        <p>Pay once with PayPal or card. After capture, this browser unlocks the protected digital edition and the email you enter in PayPal becomes the access email.</p>
         <div class="product__paypal-buttons" id="paypal-button-container" aria-live="polite"></div>
         <p class="product__checkout-status" id="paypal-checkout-status" role="status"></p>
       </div>`;
@@ -1642,24 +1731,23 @@ ${navHtml("product")}
 
   <article class="law__page product__page" id="main">
     <header class="law__hero product__hero">
-      <p class="law__eyebrow">${productIsFree() ? "Free kit" : "Paid kit"} · ${esc(productPriceLabel())}</p>
+      <p class="law__eyebrow">${productIsFree() ? "Free kit" : "The book"} · ${esc(productPriceLabel())}</p>
       <h1 class="law__title">${esc(PRODUCT.name)}</h1>
       <p class="law__sub">${esc(PRODUCT.promise || "Find hidden AI agent failure modes before users do.")}</p>
       <p class="product__lede">${esc(description)}</p>
       <div class="product__actions">
         <a class="law__cta product__buy" href="${checkoutHref()}" ${PRODUCT.checkoutUrl ? `target="_blank" rel="noopener"` : ""} data-track="product_checkout_click" data-product="${esc(PRODUCT.slug || "ai-agent-audit-kit")}">${checkoutLabel()} ${arrow}</a>
-        ${productIsFree() ? `<a class="law__cta law__cta--ghost" href="/kit.zip">Download zip</a>` : ""}
-        <a class="law__cta law__cta--ghost" href="${SITE.newsletter?.action ? "/#subscribe" : "/"}">Start with the free course</a>
+        ${productIsFree() ? `<a class="law__cta law__cta--ghost" href="/kit.zip">Download zip</a>` : `<a class="law__cta law__cta--ghost" href="/#main">Read ${freeLawCount()} laws free</a>`}
       </div>
       ${testPage ? `<p class="product__test-note">Hidden sandbox checkout page. This is not linked from the public site and is marked noindex.</p>` : ""}
       ${checkoutSetup}
     </header>
 
-    <section class="product__proof" aria-label="What this kit helps find">
+    <section class="product__proof" aria-label="What you get">
       <div class="product__panel">
-        <p class="lw__lbl lw__lbl--ac">What it does</p>
-        <h2>Turns the 50 laws into a repeatable audit for real AI agents.</h2>
-        <p>Use the included skill or copy-paste prompt to inspect an agent's prompts, tools, workflow nodes, retrieval, evals, traces, security boundaries, and human handoffs. The output is a prioritized issue list with evidence, fixes, and verification steps.</p>
+        <p class="lw__lbl lw__lbl--ac">What it is</p>
+        <h2>All ${laws.length} laws in full — plus the audit kit to apply them.</h2>
+        <p>You've read ${freeLawCount()} laws free. Unlocking opens the other ${lockedLawCount()}, each with the mechanism underneath it, the warning signs, a worked example, and an apply-it recipe. You also get the AI Agent Audit Kit to run the ${laws.length} laws against your own agents, and lifetime access to the protected edition.</p>
       </div>
       <div class="product__panel product__panel--metric">
         <span class="product__price">${esc(productPriceLabel())}</span>
@@ -1668,9 +1756,28 @@ ${navHtml("product")}
       </div>
     </section>
 
-${publicKitResourcesHtml()}
+    <section class="product__compare" aria-label="Free versus complete">
+      <div class="product__col">
+        <p class="lw__lbl">Free — ${freeLawCount()} laws</p>
+        <ul class="lw__ul">
+          <li>The principle</li>
+          <li>The takeaway</li>
+        </ul>
+      </div>
+      <div class="product__col product__col--paid">
+        <p class="lw__lbl lw__lbl--ac">Complete Edition — all ${laws.length}</p>
+        <ul class="lw__ul">
+          <li>Everything in free, for all ${laws.length} laws</li>
+          <li>Why it happens (the mechanism)</li>
+          <li>Warning signs to watch for</li>
+          <li>A worked, real-world example</li>
+          <li>A step-by-step apply-it recipe</li>
+          <li>The AI Agent Audit Kit + lifetime access</li>
+        </ul>
+      </div>
+    </section>
 
-    <section class="product__story" aria-label="Why this kit exists">
+    <section class="product__story" aria-label="Why this exists">
       <p class="lw__lbl lw__lbl--ac">Why I made this</p>
       <h2>Agents are becoming how work gets done. Weak agents will quietly cost people money, trust, and time.</h2>
 ${story.map((p) => `      <p>${esc(p)}</p>`).join("\n")}
@@ -1689,6 +1796,11 @@ ${included.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
 ${workSurfaces.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
         </ul>
       </div>
+    </section>
+
+    <section class="product__kitintro" aria-label="About the included audit kit">
+      <p class="lw__lbl lw__lbl--ac">The included bonus · AI Agent Audit Kit</p>
+      <p>Beyond reading the laws, the kit turns them into a repeatable audit you run on your own agents — in Codex, Claude, or as a copy-paste prompt.</p>
     </section>
 
     <section class="product__grid" aria-label="Audit coverage">
@@ -1732,7 +1844,7 @@ ${steps.map((item) => `          <li>${esc(item)}</li>`).join("\n")}
 
     <section class="law__more">
       <a class="law__cta product__buy" href="${checkoutHref()}" ${PRODUCT.checkoutUrl ? `target="_blank" rel="noopener"` : ""} data-track="product_checkout_click" data-product="${esc(PRODUCT.slug || "ai-agent-audit-kit")}">${checkoutLabel()} ${arrow}</a>
-      ${productIsFree() ? `<a class="law__cta law__cta--ghost" href="/kit.zip">Download zip</a>` : `<a class="law__cta law__cta--ghost" href="/access">Access the digital edition</a>`}
+      ${productIsFree() ? `<a class="law__cta law__cta--ghost" href="/kit.zip">Download zip</a>` : `<a class="law__cta law__cta--ghost" href="/access">Already bought? Unlock your access</a>`}
     </section>
   </article>
 
@@ -1747,8 +1859,8 @@ ${backTopHtml}
 ${productIsFree() ? "" : `
       function status(msg,isError){var el=document.getElementById('paypal-checkout-status');if(el){el.textContent=msg||'';el.classList.toggle('is-error',!!isError);}}
       function json(path,body){return fetch(path,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json().then(function(data){if(!r.ok){var e=new Error(data.message||data.error||'Request failed');e.code=data.error||'';throw e;}return data;});});}
-      function loadPayPalSdk(cfg){return new Promise(function(resolve,reject){if(window.paypal){resolve();return;}var s=document.createElement('script');s.src='https://www.paypal.com/sdk/js?client-id='+encodeURIComponent(cfg.clientId)+'&currency='+encodeURIComponent(cfg.currency||'USD')+'&intent=capture';s.onload=resolve;s.onerror=function(){reject(new Error('PayPal checkout could not load'));};document.head.appendChild(s);});}
-      function initPayPal(){var container=document.getElementById('paypal-button-container'),email=document.getElementById('buyer-email');if(!container||!email)return;fetch('/api/paypal/config',{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(cfg){if(!cfg.configured){status('PayPal checkout is not configured yet.',true);return;}if(cfg.mode==='sandbox'){status('Sandbox checkout active. Use a PayPal sandbox buyer account for testing.',true);}return loadPayPalSdk(cfg).then(function(){window.paypal.Buttons({style:{layout:'vertical',shape:'rect',label:'pay'},onClick:function(_,actions){if(!email.checkValidity()){email.reportValidity();status('Enter the email you want to use for access.',true);return actions.reject();}status('Opening PayPal checkout...');return actions.resolve();},createOrder:function(){return json('/api/paypal/create-order',{email:email.value}).then(function(order){track('product_checkout_start',{product:'ai-agent-audit-kit',provider:'paypal'});return order.id;});},onApprove:function(data,actions){status('Capturing payment...');return json('/api/paypal/capture-order',{orderID:data.orderID,email:email.value}).then(function(result){track('product_checkout_paid',{product:'ai-agent-audit-kit',provider:'paypal'});window.location.href=result.accessUrl||'/paid/edition.html';}).catch(function(err){if(err.code==='INSTRUMENT_DECLINED'&&actions&&actions.restart){status('Sandbox payment method was declined. Choose another buyer account or test card.',true);return actions.restart();}throw err;});},onCancel:function(){status('Checkout canceled.');},onError:function(err){console.error(err);status(err&&err.message?err.message:'PayPal checkout failed. Try again or refresh the page.',true);}}).render('#paypal-button-container');});}).catch(function(err){console.error(err);status('PayPal checkout is unavailable right now.',true);});}
+      function loadPayPalSdk(cfg){return new Promise(function(resolve,reject){if(window.paypal){resolve();return;}var s=document.createElement('script');var qs='client-id='+encodeURIComponent(cfg.clientId)+'&currency='+encodeURIComponent(cfg.currency||'USD')+'&intent=capture';if(cfg.disableCardFunding){qs+='&disable-funding=card';}s.src='https://www.paypal.com/sdk/js?'+qs;s.onload=resolve;s.onerror=function(){reject(new Error('PayPal checkout could not load'));};document.head.appendChild(s);});}
+      function initPayPal(){var container=document.getElementById('paypal-button-container');if(!container)return;fetch('/api/paypal/config',{headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(cfg){if(!cfg.configured){status('PayPal checkout is not configured yet.',true);return;}if(cfg.mode==='sandbox'){status('Sandbox checkout active. Use a PayPal sandbox buyer account for testing.',true);}return loadPayPalSdk(cfg).then(function(){window.paypal.Buttons({style:{layout:'vertical',shape:'rect',label:'pay'},onClick:function(_,actions){status('Opening PayPal checkout...');return actions.resolve();},createOrder:function(){return json('/api/paypal/create-order',{}).then(function(order){track('product_checkout_start',{product:'ai-agent-audit-kit',provider:'paypal'});return order.id;});},onApprove:function(data,actions){status('Capturing payment...');return json('/api/paypal/capture-order',{orderID:data.orderID}).then(function(result){track('product_checkout_paid',{product:'ai-agent-audit-kit',provider:'paypal'});window.location.href=result.accessUrl||'/paid/edition.html';}).catch(function(err){if(err.code==='INSTRUMENT_DECLINED'&&actions&&actions.restart){status('Sandbox payment method was declined. Choose another buyer account or test card.',true);return actions.restart();}throw err;});},onCancel:function(){status('Checkout canceled.');},onError:function(err){console.error(err);status(err&&err.message?err.message:'PayPal checkout failed. Try again or refresh the page.',true);}}).render('#paypal-button-container');});}).catch(function(err){console.error(err);status('PayPal checkout is unavailable right now.',true);});}
 `}
       function s(){var y=window.scrollY||0;if(nav)nav.classList.toggle('is-scrolled',y>8);if(bt)bt.classList.toggle('is-on',y>560);}
       window.addEventListener('scroll',s,{passive:true});s();
@@ -1824,7 +1936,13 @@ function lawCss() {
 .product__story .lw__lbl{color:var(--ac,var(--accent))}
 .product__grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px;padding-top:28px;border-top:1px solid var(--border)}
 .product__grid--steps{margin-top:26px}
-@media(max-width:720px){.product__proof,.product__grid{grid-template-columns:1fr}.product__price{font-size:40px}}
+.product__compare{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin-top:24px}
+.product__col{border:1px solid var(--border);border-radius:16px;background:var(--card);padding:20px}
+.product__col--paid{border-color:color-mix(in srgb,var(--accent) 40%,transparent);background:color-mix(in srgb,var(--accent) 7%,var(--card))}
+.product__col .lw__ul{margin-top:6px}
+.product__kitintro{margin-top:36px;padding-top:26px;border-top:1px solid var(--border)}
+.product__kitintro p:last-child{color:var(--dim);margin-top:6px;max-width:60ch}
+@media(max-width:720px){.product__proof,.product__grid,.product__compare{grid-template-columns:1fr}.product__price{font-size:40px}}
 `;
 }
 
@@ -1908,8 +2026,11 @@ const publicData = {
 };
 
 writeFileSync(join(DIST, "index.html"), indexHtml());
-writeFileSync(join(DIST, "edition.html"), editionHtml({ buyerResources: false }));
-if (productConfigured()) writeFileSync(join(DIST, "paid-edition.html"), editionHtml({ buyerResources: true }));
+// Public edition removed under the single-book IA: the homepage grid is the book.
+// A free continuous edition only ships when the product is off (fallback). Buyers
+// always get the full continuous read at paid-edition.html.
+if (!productEnabled()) writeFileSync(join(DIST, "edition.html"), editionHtml({ buyerResources: false, gated: false }));
+if (productConfigured()) writeFileSync(join(DIST, "paid-edition.html"), editionHtml({ buyerResources: true, gated: false }));
 writeFileSync(join(DIST, "edition.css"), editionCss());
 writeFileSync(join(DIST, "law.css"), lawCss());
 writeFileSync(join(DIST, "nav.css"), navCss());

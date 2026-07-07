@@ -227,6 +227,20 @@
         srcEl.hidden = true;
       }
     }
+    const locked = card.dataset.locked === "1";
+    // Locked laws must FEEL locked: hide the principle/takeaway body and the
+    // source, show the locked panel instead. Free laws show the full preview.
+    const bodyEl = $("#modal-body");
+    const lockedEl = $("#modal-locked");
+    if (bodyEl) bodyEl.hidden = locked;
+    if (lockedEl) lockedEl.hidden = !locked;
+    if (locked) { const s = $("#modal-source"); if (s) s.hidden = true; }
+    const ctaEl = $("#modal-cta");
+    if (ctaEl) {
+      ctaEl.textContent = card.dataset.ctaLabel || (locked ? "Unlock all laws" : "Read the full law");
+      ctaEl.setAttribute("href", card.dataset.ctaHref || ("/law/" + card.id + "/"));
+      ctaEl.classList.toggle("modal__cta--locked", locked);
+    }
     modal.hidden = false;
     document.body.style.overflow = "hidden";
     if (push && card.id && location.hash !== "#" + card.id) {
@@ -259,6 +273,52 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !modal.hidden) closeModal(true);
   });
+
+  // ---------- Session-aware UI (paid users see different CTAs) ----------
+  var ARROW = '<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';
+  var PAID_EDITION = "/paid/edition.html";
+  function applyAuthenticatedState() {
+    var navCta = document.querySelector(".nav__cta");
+    if (navCta) { navCta.setAttribute("href", PAID_EDITION); navCta.innerHTML = "Read the edition " + ARROW; }
+
+    var heroBtn = document.querySelector(".hero__btn:not(.hero__btn--ghost)");
+    if (heroBtn) { heroBtn.setAttribute("href", PAID_EDITION); heroBtn.innerHTML = "Read the full edition " + ARROW; }
+
+    var promoBtn = document.querySelector(".promo__btn");
+    if (promoBtn) { promoBtn.setAttribute("href", PAID_EDITION); promoBtn.innerHTML = "Read the full edition " + ARROW; }
+
+    var ghostBtn = document.querySelector(".hero__btn.hero__btn--ghost");
+    if (ghostBtn) { ghostBtn.setAttribute("href", "#main"); ghostBtn.textContent = "Browse all laws"; }
+
+    document.querySelectorAll(".card--locked").forEach(function (c) {
+      c.dataset.ctaHref = PAID_EDITION;
+      c.dataset.ctaLabel = "Read the full law";
+    });
+
+    document.querySelectorAll(".card--locked .card__cue").forEach(function (el) {
+      el.innerHTML = "Read the edition " + ARROW;
+    });
+
+    document.querySelectorAll(".law__unlock, .law__cta, .ed__gate-cta, .lw__unlock").forEach(function (el) {
+      el.setAttribute("href", PAID_EDITION);
+      el.innerHTML = "Read the full edition " + ARROW;
+    });
+
+    document.querySelectorAll("[data-track='product_checkout_click']").forEach(function (el) {
+      el.setAttribute("href", PAID_EDITION);
+    });
+
+    var bookLink = document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');
+    if (bookLink) { bookLink.setAttribute("href", PAID_EDITION); bookLink.textContent = "Read the edition"; }
+  }
+
+  function checkSession() {
+    fetch("/api/session", { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
+      .then(function (d) { if (d.authenticated) applyAuthenticatedState(); })
+      .catch(function () {});
+  }
+  checkSession();
 
   // ---------- Deep-linking ----------
   function openFromHash() {

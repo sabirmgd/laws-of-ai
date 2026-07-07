@@ -27,7 +27,7 @@ COPY --from=build /app/product/ai-agent-audit-kit/build/ai-agent-audit-kit-50-la
 COPY --from=build /app/product/ai-agent-audit-kit/releases/ai-agent-audit-kit-50-laws-edition.zip ./product/ai-agent-audit-kit/releases/ai-agent-audit-kit-50-laws-edition.zip
 COPY server.mjs ./
 
-RUN test -f dist/index.html && test -f dist/edition.html
+RUN test -f dist/index.html && test -f dist/paid-edition.html
 RUN test -f product/ai-agent-audit-kit/build/ai-agent-audit-kit-50-laws-edition/START-HERE.md \
   && test -f product/ai-agent-audit-kit/build/ai-agent-audit-kit-50-laws-edition/ai-agent-audit/SKILL.md \
   && test -f product/ai-agent-audit-kit/build/ai-agent-audit-kit-50-laws-edition/ai-agent-audit/assets/platform-intake.md \

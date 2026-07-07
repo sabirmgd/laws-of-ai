@@ -9,6 +9,9 @@
 # Optional .env.local:
 #   KIT_V4_API_KEY  Kit V4 key for server-side newsletter signup
 #   KIT_FORM_ID     Kit form id to attach subscribers to
+#   RESEND_API_KEY        Resend key for access-code email delivery
+#   EMAIL_FROM            Verified sender, default: Laws of AI Agents <access@lawsofagents.ai>
+#   SITE_URL              Canonical public site URL, default: https://lawsofagents.ai/
 #   PAYPAL_CLIENT_ID      PayPal REST app client id
 #   PAYPAL_CLIENT_SECRET  PayPal REST app secret
 #   PAYPAL_MODE           sandbox or live
@@ -26,6 +29,7 @@ DOMAIN="laws.deleg8.dev"
 CF_ZONE="deleg8.dev"
 KIT_SECRET_NAME="laws-kit-v4-api-key"
 PAYPAL_SECRET_NAME="laws-paypal-client-secret"
+RESEND_SECRET_NAME="laws-resend-api-key"
 FIRESTORE_DATABASE="(default)"
 FIRESTORE_LOCATION="${FIRESTORE_LOCATION:-}"
 PROTECTED_BUCKET="${PROTECTED_BUCKET:-}"
@@ -63,13 +67,18 @@ if [[ -z "$KIT_V4_API_KEY" ]]; then
   KIT_V4_API_KEY="$(read_env_value KIT_API_KEY)"
 fi
 KIT_FORM_ID="${KIT_FORM_ID:-$(read_env_value KIT_FORM_ID)}"
+RESEND_API_KEY="${RESEND_API_KEY:-$(read_env_value RESEND_API_KEY)}"
+EMAIL_FROM="${EMAIL_FROM:-$(read_env_value EMAIL_FROM)}"
+EMAIL_FROM="${EMAIL_FROM:-Laws of AI Agents <access@lawsofagents.ai>}"
+SITE_URL="${SITE_URL:-$(read_env_value SITE_URL)}"
+SITE_URL="${SITE_URL:-https://lawsofagents.ai/}"
 PAYPAL_CLIENT_ID="${PAYPAL_CLIENT_ID:-$(read_env_value PAYPAL_CLIENT_ID)}"
 PAYPAL_CLIENT_SECRET="${PAYPAL_CLIENT_SECRET:-$(read_env_value PAYPAL_CLIENT_SECRET)}"
 PAYPAL_MODE="${PAYPAL_MODE:-$(read_env_value PAYPAL_MODE)}"
 PAYPAL_MODE="${PAYPAL_MODE:-sandbox}"
 PAYPAL_WEBHOOK_ID="${PAYPAL_WEBHOOK_ID:-$(read_env_value PAYPAL_WEBHOOK_ID)}"
 PRODUCT_PRICE="${PRODUCT_PRICE:-$(read_env_value PRODUCT_PRICE)}"
-PRODUCT_PRICE="${PRODUCT_PRICE:-14.90}"
+PRODUCT_PRICE="${PRODUCT_PRICE:-1.00}"
 PRODUCT_CURRENCY="${PRODUCT_CURRENCY:-$(read_env_value PRODUCT_CURRENCY)}"
 PRODUCT_CURRENCY="${PRODUCT_CURRENCY:-USD}"
 PRODUCT_PUBLIC_ENABLED="${PRODUCT_PUBLIC_ENABLED:-$(read_env_value PRODUCT_PUBLIC_ENABLED)}"
@@ -78,22 +87,26 @@ FREE_EDITION_ENABLED="${FREE_EDITION_ENABLED:-$(read_env_value FREE_EDITION_ENAB
 FREE_EDITION_ENABLED="${FREE_EDITION_ENABLED:-true}"
 PAYMENT_TEST_ENABLED="${PAYMENT_TEST_ENABLED:-$(read_env_value PAYMENT_TEST_ENABLED)}"
 PAYMENT_TEST_ENABLED="${PAYMENT_TEST_ENABLED:-true}"
+PAYPAL_DISABLE_CARD_FUNDING="${PAYPAL_DISABLE_CARD_FUNDING:-$(read_env_value PAYPAL_DISABLE_CARD_FUNDING)}"
+PAYPAL_DISABLE_CARD_FUNDING="${PAYPAL_DISABLE_CARD_FUNDING:-false}"
 FIRESTORE_LOCATION="${FIRESTORE_LOCATION:-$(read_env_value FIRESTORE_LOCATION)}"
 FIRESTORE_LOCATION="${FIRESTORE_LOCATION:-nam5}"
 PROTECTED_BUCKET="${PROTECTED_BUCKET:-$(read_env_value PROTECTED_BUCKET)}"
 PROTECTED_BUCKET="${PROTECTED_BUCKET:-deleg8-dev-laws-of-ai-protected}"
-export PRODUCT_PRICE PRODUCT_CURRENCY PRODUCT_PUBLIC_ENABLED FREE_EDITION_ENABLED PAYMENT_TEST_ENABLED
+export PRODUCT_PRICE PRODUCT_CURRENCY PRODUCT_PUBLIC_ENABLED FREE_EDITION_ENABLED PAYMENT_TEST_ENABLED PAYPAL_DISABLE_CARD_FUNDING
 RUN_ENV_VARS=(
-  "SITE_URL=https://${DOMAIN}/"
+  "SITE_URL=${SITE_URL}"
   "FIRESTORE_PROJECT_ID=${PROJECT_ID}"
   "FIRESTORE_DATABASE=${FIRESTORE_DATABASE}"
   "PROTECTED_BUCKET=${PROTECTED_BUCKET}"
+  "EMAIL_FROM=${EMAIL_FROM}"
   "PRODUCT_NAME=AI Agent Audit Kit: 50 Laws Edition"
   "PRODUCT_PRICE=${PRODUCT_PRICE}"
   "PRODUCT_CURRENCY=${PRODUCT_CURRENCY}"
   "PRODUCT_PUBLIC_ENABLED=${PRODUCT_PUBLIC_ENABLED}"
   "FREE_EDITION_ENABLED=${FREE_EDITION_ENABLED}"
   "PAYMENT_TEST_ENABLED=${PAYMENT_TEST_ENABLED}"
+  "PAYPAL_DISABLE_CARD_FUNDING=${PAYPAL_DISABLE_CARD_FUNDING}"
 )
 RUN_SECRET_BINDINGS=()
 
@@ -205,6 +218,15 @@ else
   echo "!! KIT_V4_API_KEY or KIT_FORM_ID missing — deploying without live newsletter API credentials."
 fi
 
+if [[ -n "$RESEND_API_KEY" ]]; then
+  echo "==> Updating Secret Manager secret for Resend API key"
+  upsert_secret "$RESEND_SECRET_NAME" "$RESEND_API_KEY"
+  grant_secret_access "$RESEND_SECRET_NAME" "$RUNTIME_SA"
+  RUN_SECRET_BINDINGS+=("RESEND_API_KEY=${RESEND_SECRET_NAME}:latest")
+else
+  echo "!! RESEND_API_KEY missing — deploying without live access-code email delivery."
+fi
+
 PAYMENTS_RUNTIME_ENABLED=false
 if [[ "$PRODUCT_PUBLIC_ENABLED" == "true" || "$PAYMENT_TEST_ENABLED" == "true" ]]; then
   PAYMENTS_RUNTIME_ENABLED=true
@@ -212,9 +234,10 @@ fi
 
 if [[ "$PAYMENTS_RUNTIME_ENABLED" == "true" && -n "$PAYPAL_CLIENT_ID" && -n "$PAYPAL_CLIENT_SECRET" ]]; then
   echo "==> Creating or reusing PayPal webhook"
-  DISCOVERED_PAYPAL_WEBHOOK_ID="$(PAYPAL_CLIENT_ID="$PAYPAL_CLIENT_ID" PAYPAL_CLIENT_SECRET="$PAYPAL_CLIENT_SECRET" PAYPAL_MODE="$PAYPAL_MODE" node scripts/paypal-webhook.mjs "https://${DOMAIN}/api/paypal/webhook")"
+  PAYPAL_WEBHOOK_URL="${SITE_URL%/}/api/paypal/webhook"
+  DISCOVERED_PAYPAL_WEBHOOK_ID="$(PAYPAL_CLIENT_ID="$PAYPAL_CLIENT_ID" PAYPAL_CLIENT_SECRET="$PAYPAL_CLIENT_SECRET" PAYPAL_MODE="$PAYPAL_MODE" node scripts/paypal-webhook.mjs "$PAYPAL_WEBHOOK_URL")"
   if [[ -n "$PAYPAL_WEBHOOK_ID" && "$PAYPAL_WEBHOOK_ID" != "$DISCOVERED_PAYPAL_WEBHOOK_ID" ]]; then
-    echo "    Replacing configured PAYPAL_WEBHOOK_ID with the webhook for https://${DOMAIN}/api/paypal/webhook"
+    echo "    Replacing configured PAYPAL_WEBHOOK_ID with the webhook for ${PAYPAL_WEBHOOK_URL}"
   fi
   PAYPAL_WEBHOOK_ID="$DISCOVERED_PAYPAL_WEBHOOK_ID"
 

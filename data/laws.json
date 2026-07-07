@@ -16,15 +16,16 @@
     "product": {
       "enabled": true,
       "slug": "ai-agent-audit-kit",
-      "name": "AI Agent Audit Kit: 50 Laws Edition",
-      "shortName": "AI Agent Audit Kit",
-      "price": "Free for now",
+      "name": "Laws of AI Agents — Complete Edition",
+      "shortName": "Complete Edition",
+      "price": "$1.00",
       "currency": "USD",
-      "checkoutProvider": "Free access",
+      "checkoutProvider": "PayPal",
       "checkoutUrl": "",
-      "summary": "An audit workflow for real AI agents. Run it on code repos, n8n or workflow exports, SDK and API projects, black-box transcript reviews, or client reports to find concrete failure modes and the fixes for them.",
-      "promise": "Use the audit skill free while we decide what should stay free and what should become paid.",
-      "note": "The audit skill files are public during the launch period."
+      "summary": "All 50 laws in full — the mechanism, the warning signs, a worked example, and an apply-it recipe for each — plus the AI Agent Audit Kit to run them against your own agents.",
+      "promise": "Read 20 laws free, then unlock all 50 with the deep dives and the audit kit. One-time purchase, lifetime access.",
+      "note": "One-time purchase. Lifetime access to the complete digital edition and the audit kit.",
+      "freeLaws": [1, 2, 6, 10, 11, 14, 16, 17, 21, 23, 25, 29, 31, 33, 36, 40, 42, 43, 46, 48]
     },
     "newsletter": {
       "action": "/api/newsletter",

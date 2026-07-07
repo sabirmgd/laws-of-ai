@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { createReadStream, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
@@ -61,8 +61,15 @@ const PROTECTED_BUCKET = process.env.PROTECTED_BUCKET || "";
 const ENTITLEMENT_COLLECTION = process.env.ENTITLEMENT_COLLECTION || "lawsAiEntitlements";
 const SESSION_COLLECTION = process.env.SESSION_COLLECTION || "lawsAiSessions";
 const ORDER_COLLECTION = process.env.ORDER_COLLECTION || "lawsAiOrders";
+const OTP_COLLECTION = process.env.OTP_COLLECTION || "lawsAiOtps";
 const SESSION_COOKIE = "loa_session";
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
+const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 10);
+const OTP_TTL_SECONDS = Number(process.env.OTP_TTL_SECONDS || 600);
+const OTP_MAX_ATTEMPTS = Number(process.env.OTP_MAX_ATTEMPTS || 5);
+const OTP_RESEND_COOLDOWN_SECONDS = Number(process.env.OTP_RESEND_COOLDOWN_SECONDS || 60);
+const OTP_MAX_SENDS_PER_HOUR = Number(process.env.OTP_MAX_SENDS_PER_HOUR || 5);
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const EMAIL_FROM = process.env.EMAIL_FROM || "Laws of AI Agents <access@lawsofagents.ai>";
 const LOCAL_ACCESS_STORE = process.env.LOCAL_ACCESS_STORE || (!process.env.K_SERVICE && !process.env.GOOGLE_OAUTH_ACCESS_TOKEN ? join(ROOT, ".local", "paid-access-store.json") : "");
 const PAYPAL_MODE = process.env.PAYPAL_MODE === "live" ? "live" : "sandbox";
 const PAYPAL_BASE_URL = PAYPAL_MODE === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com";
@@ -71,10 +78,11 @@ const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || "";
 const PAYPAL_WEBHOOK_ID = process.env.PAYPAL_WEBHOOK_ID || "";
 const PRODUCT_NAME = process.env.PRODUCT_NAME || "AI Agent Audit Kit: 50 Laws Edition";
 const PRODUCT_CURRENCY = process.env.PRODUCT_CURRENCY || "USD";
-const PRODUCT_PRICE = process.env.PRODUCT_PRICE || process.env.PRODUCT_PRICE_USD || "14.90";
+const PRODUCT_PRICE = process.env.PRODUCT_PRICE || process.env.PRODUCT_PRICE_USD || "1.00";
 const PRODUCT_PUBLIC_ENABLED = flag("PRODUCT_PUBLIC_ENABLED", true);
 const FREE_EDITION_ENABLED = flag("FREE_EDITION_ENABLED", !PRODUCT_PUBLIC_ENABLED);
 const PAYMENT_TEST_ENABLED = flag("PAYMENT_TEST_ENABLED", false);
+const PAYPAL_DISABLE_CARD_FUNDING = flag("PAYPAL_DISABLE_CARD_FUNDING", PAYPAL_MODE === "sandbox");
 let paypalTokenCache = null;
 
 const MIME = {
@@ -281,6 +289,17 @@ async function firestoreGet(collection, id) {
   }
 }
 
+async function firestoreDelete(collection, id) {
+  if (LOCAL_ACCESS_STORE) {
+    const store = localStoreRead();
+    delete store[localStoreKey(collection, id)];
+    localStoreWrite(store);
+    return { local: true };
+  }
+  const encodedId = encodeURIComponent(id);
+  return firestoreRequest(`/${collection}/${encodedId}`, { method: "DELETE" });
+}
+
 async function readBody(req) {
   const chunks = [];
   let total = 0;
@@ -397,8 +416,8 @@ async function readJson(req) {
 
 function productPriceValue() {
   const raw = String(PRODUCT_PRICE).replace(/[^0-9.]/g, "");
-  const value = Number(raw || "14.90");
-  if (!Number.isFinite(value) || value <= 0) return "14.90";
+  const value = Number(raw || "1.00");
+  if (!Number.isFinite(value) || value <= 0) return "1.00";
   return value.toFixed(2);
 }
 
@@ -606,6 +625,7 @@ async function handlePaypalConfig(req, res) {
     currency: PRODUCT_CURRENCY,
     price: productPriceValue(),
     productName: PRODUCT_NAME,
+    disableCardFunding: PAYPAL_DISABLE_CARD_FUNDING,
   }), { "Content-Type": "application/json; charset=utf-8" });
 }
 
@@ -622,38 +642,60 @@ async function handlePaypalCreateOrder(req, res) {
   try {
     const body = await readJson(req);
     const email = String(body.email || "").trim().toLowerCase();
-    if (!validEmail(email)) {
-      send(res, 400, JSON.stringify({ ok: false, error: "valid email required" }), { "Content-Type": "application/json; charset=utf-8" });
-      return;
-    }
+    const hasCheckoutEmail = validEmail(email);
 
     const origin = publicOrigin(req);
+    const price = productPriceValue();
     const order = await paypalRequest("POST", "/v2/checkout/orders", {
       intent: "CAPTURE",
+      payment_source: {
+        paypal: {
+          experience_context: {
+            brand_name: "Laws of AI Agents",
+            payment_method_preference: "IMMEDIATE_PAYMENT_REQUIRED",
+            landing_page: "BILLING",
+            shipping_preference: "NO_SHIPPING",
+            user_action: "PAY_NOW",
+            return_url: `${origin}/paid/edition.html`,
+            cancel_url: checkoutCancelUrl(origin),
+          },
+        },
+      },
       purchase_units: [
         {
           reference_id: "ai-agent-audit-kit",
-          custom_id: emailId(email),
+          custom_id: hasCheckoutEmail ? emailId(email) : randomUUID(),
           description: PRODUCT_NAME,
           amount: {
             currency_code: PRODUCT_CURRENCY,
-            value: productPriceValue(),
+            value: price,
+            breakdown: {
+              item_total: {
+                currency_code: PRODUCT_CURRENCY,
+                value: price,
+              },
+            },
           },
+          items: [
+            {
+              name: PRODUCT_NAME,
+              description: "Protected digital edition and AI Agent Audit Kit access",
+              quantity: "1",
+              category: "DIGITAL_GOODS",
+              unit_amount: {
+                currency_code: PRODUCT_CURRENCY,
+                value: price,
+              },
+              url: `${origin}/ai-agent-audit-kit/`,
+            },
+          ],
         },
       ],
-      application_context: {
-        brand_name: "Laws of AI Agents",
-        landing_page: "BILLING",
-        shipping_preference: "NO_SHIPPING",
-        user_action: "PAY_NOW",
-        return_url: `${origin}/paid/edition.html`,
-        cancel_url: checkoutCancelUrl(origin),
-      },
     });
 
-    await rememberPayPalTransaction(email, order.id, "", {
+    await rememberPayPalTransaction(hasCheckoutEmail ? email : "", order.id, "", {
       status: String(order.status || "CREATED"),
-      buyerId: emailId(email),
+      buyerId: hasCheckoutEmail ? emailId(email) : "",
     });
     send(res, 200, JSON.stringify({ id: order.id }), { "Content-Type": "application/json; charset=utf-8" });
   } catch (err) {
@@ -778,23 +820,176 @@ async function handlePaypalWebhook(req, res) {
   }
 }
 
-function accessForm(message = "") {
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+const INPUT_STYLE =
+  "width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #334;background:#11141b;color:#fff";
+const BUTTON_STYLE =
+  "padding:10px 16px;border-radius:999px;border:0;background:#bdf4df;color:#07110d;font-weight:700;cursor:pointer";
+
+function accessForm({ step = "request", email = "", message = "" } = {}) {
   const backHref = PRODUCT_PUBLIC_ENABLED
     ? "/ai-agent-audit-kit/"
     : PAYMENT_TEST_ENABLED
       ? "/sandbox/ai-agent-audit-kit/"
       : "/edition.html";
+  const note = message ? `<p><strong>${message}</strong></p>` : "";
+
+  if (step === "verify") {
+    return htmlPage(
+      "Access The Digital Edition",
+      `<h1>Enter your access code</h1>
+      <p>We sent a 6-digit code to <strong>${escapeHtml(email)}</strong>. It expires in 10 minutes. After it works, this browser stays unlocked for 10 days.</p>
+      ${note}
+      <form method="post" action="/access">
+        <input type="hidden" name="intent" value="verify">
+        <input type="hidden" name="email" value="${escapeHtml(email)}">
+        <p><input style="${INPUT_STYLE};letter-spacing:.4em;font-size:20px;text-align:center" type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" placeholder="123456" required autofocus></p>
+        <p><button style="${BUTTON_STYLE}" type="submit">Unlock edition</button></p>
+      </form>
+      <form method="post" action="/access" style="margin-top:8px">
+        <input type="hidden" name="intent" value="request">
+        <input type="hidden" name="email" value="${escapeHtml(email)}">
+        <p><button style="background:none;border:0;color:#bdf4df;text-decoration:underline;cursor:pointer;padding:0" type="submit">Resend code</button></p>
+      </form>
+      <p><a href="/access">Use a different email</a></p>`
+    );
+  }
+
   return htmlPage(
     "Access The Digital Edition",
     `<h1>Access the digital edition</h1>
-      <p>Enter the email address you used at PayPal checkout. If your payment is active, this browser will be unlocked.</p>
-      ${message ? `<p><strong>${message}</strong></p>` : ""}
+      <p>Enter the email you used at checkout. If it has an active purchase, we'll email you a 6-digit code and unlock this browser for 10 days.</p>
+      ${note}
       <form method="post" action="/access">
-        <p><input style="width:100%;box-sizing:border-box;padding:12px;border-radius:8px;border:1px solid #334;background:#11141b;color:#fff" type="email" name="email" placeholder="you@example.com" autocomplete="email" required></p>
-        <p><button style="padding:10px 16px;border-radius:999px;border:0;background:#bdf4df;color:#07110d;font-weight:700" type="submit">Unlock edition</button></p>
+        <input type="hidden" name="intent" value="request">
+        <p><input style="${INPUT_STYLE}" type="email" name="email" value="${escapeHtml(email)}" placeholder="you@example.com" autocomplete="email" required autofocus></p>
+        <p><button style="${BUTTON_STYLE}" type="submit">Email me an access code</button></p>
       </form>
+      <p style="color:#9ca3af;font-size:14px">Already bought? Use the same checkout email. New device or expired browser access? This sends a fresh code.</p>
       <p><a href="${backHref}">Back</a></p>`
   );
+}
+
+function otpCodeHash(code, email) {
+  return sha256(`${String(code).trim()}:${String(email).trim().toLowerCase()}`);
+}
+
+function otpEmailBody(code) {
+  const text = `Your Laws of AI Agents access code is ${code}\n\nEnter it on the access page to unlock the complete edition on this browser for 10 days. The code expires in 10 minutes. If you didn't request it, you can ignore this email.`;
+  const html = `<div style="font-family:Inter,system-ui,sans-serif;max-width:480px;margin:0 auto;color:#0a0b0f">
+      <h2 style="font-weight:600">Your access code</h2>
+      <p>Enter this code on the access page to unlock the complete edition on this browser for 10 days:</p>
+      <p style="font-size:32px;font-weight:700;letter-spacing:.2em;margin:24px 0">${code}</p>
+      <p style="color:#555">The code expires in 10 minutes. If you didn't request it, you can ignore this email.</p>
+      <p style="color:#555">— Laws of AI Agents</p>
+    </div>`;
+  return { text, html };
+}
+
+async function sendOtpEmail(email, code) {
+  if (!RESEND_API_KEY) {
+    // Dev/local fallback: no email provider configured. Log the code so the flow is
+    // testable offline. Never happens in production, where RESEND_API_KEY is set.
+    console.log(`[otp] code for ${email}: ${code}`);
+    return { delivered: false, logged: true };
+  }
+  const { text, html } = otpEmailBody(code);
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: EMAIL_FROM,
+      to: [email],
+      subject: "Your Laws of AI Agents access code",
+      text,
+      html,
+    }),
+  });
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Resend send failed: ${response.status} ${detail.slice(0, 200)}`);
+  }
+  return { delivered: true };
+}
+
+// Generate + email an OTP for a buyer with an active entitlement. Enforces a resend
+// cooldown and an hourly send cap. Returns { sent, code, reason }. `code` is only used
+// to echo into a test-mode response header; it is never returned to normal clients.
+async function issueOtp(email) {
+  const id = emailId(email);
+  const now = Date.now();
+  const existing = (await firestoreGet(OTP_COLLECTION, id)) || null;
+
+  let sendCount = 0;
+  let windowStartedAt = now;
+  if (existing) {
+    const windowMs = 60 * 60 * 1000;
+    const startedAt = new Date(existing.windowStartedAt || 0).getTime();
+    if (now - startedAt < windowMs) {
+      sendCount = Number(existing.sendCount || 0);
+      windowStartedAt = startedAt;
+    }
+    if (sendCount >= OTP_MAX_SENDS_PER_HOUR) {
+      return { sent: false, reason: "rate_hour" };
+    }
+    const lastSentAt = new Date(existing.lastSentAt || 0).getTime();
+    const notExpired = new Date(existing.expiresAt || 0).getTime() > now;
+    if (notExpired && now - lastSentAt < OTP_RESEND_COOLDOWN_SECONDS * 1000) {
+      // A fresh code was just sent — don't generate another, keep the old one valid.
+      return { sent: false, reason: "cooldown" };
+    }
+  }
+
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  await firestoreSet(OTP_COLLECTION, id, {
+    email,
+    codeHash: otpCodeHash(code, email),
+    expiresAt: futureIso(OTP_TTL_SECONDS),
+    attempts: 0,
+    sendCount: sendCount + 1,
+    windowStartedAt: new Date(windowStartedAt).toISOString(),
+    lastSentAt: nowIso(),
+    createdAt: existing?.createdAt || nowIso(),
+  });
+  await sendOtpEmail(email, code);
+  return { sent: true, code };
+}
+
+// Check a submitted code. Returns { ok } on success (record consumed) or
+// { ok:false, reason } where reason ∈ expired | locked | mismatch.
+async function verifyOtp(email, code) {
+  const id = emailId(email);
+  const rec = await firestoreGet(OTP_COLLECTION, id);
+  const now = Date.now();
+  if (!rec || !rec.codeHash) return { ok: false, reason: "expired" };
+  if (new Date(rec.expiresAt || 0).getTime() < now) {
+    await firestoreDelete(OTP_COLLECTION, id);
+    return { ok: false, reason: "expired" };
+  }
+  if (Number(rec.attempts || 0) >= OTP_MAX_ATTEMPTS) {
+    await firestoreDelete(OTP_COLLECTION, id);
+    return { ok: false, reason: "locked" };
+  }
+  const provided = Buffer.from(otpCodeHash(code, email));
+  const expected = Buffer.from(String(rec.codeHash));
+  const match = provided.length === expected.length && timingSafeEqual(provided, expected);
+  if (!match) {
+    await firestoreSet(OTP_COLLECTION, id, { ...rec, attempts: Number(rec.attempts || 0) + 1 });
+    return { ok: false, reason: "mismatch" };
+  }
+  await firestoreDelete(OTP_COLLECTION, id);
+  return { ok: true };
 }
 
 function handleLogout(req, res) {
@@ -821,20 +1016,85 @@ async function createSession(email, entitlement) {
   return token;
 }
 
-async function sessionFromRequest(req) {
+async function sessionGateFromRequest(req) {
   const token = parseCookies(req)[SESSION_COOKIE];
-  if (!token) return null;
+  if (!token) return { ok: false, reason: "missing" };
   const session = await firestoreGet(SESSION_COLLECTION, sha256(token));
-  if (!session || !session.active) return null;
-  if (session.expiresAt && new Date(session.expiresAt).getTime() < Date.now()) return null;
+  if (!session || !session.active) return { ok: false, reason: "invalid" };
+  if (session.expiresAt && new Date(session.expiresAt).getTime() < Date.now()) {
+    return { ok: false, reason: "expired", session };
+  }
   const entitlement = await firestoreGet(ENTITLEMENT_COLLECTION, session.buyerId);
-  if (!entitlement || !entitlement.active) return null;
-  return { session, entitlement };
+  if (!entitlement || !entitlement.active) return { ok: false, reason: "inactive", session };
+  return { ok: true, session, entitlement };
+}
+
+async function handleAccessRequest(req, res, email) {
+  // Anti-enumeration: always advance to the code-entry step with a generic message.
+  // Only actually mint + send a code when the email has an active entitlement.
+  const generic = "If that email has an active purchase, a 6-digit code is on its way.";
+  const entitlement = await firestoreGet(ENTITLEMENT_COLLECTION, emailId(email));
+  const headers = { "Content-Type": "text/html; charset=utf-8" };
+  if (entitlement && entitlement.active) {
+    const result = await issueOtp(email);
+    if (result.reason === "rate_hour") {
+      send(res, 429, accessForm({ step: "verify", email, message: "Too many code requests. Try again later, or enter a code you already received." }), headers);
+      return;
+    }
+    // Test-only: expose the code so automated tests can drive the flow. Gated behind
+    // PAYMENT_TEST_ENABLED, which is false in production.
+    if (PAYMENT_TEST_ENABLED && result.code) headers["X-Otp-Dev-Code"] = result.code;
+  }
+  send(res, 200, accessForm({ step: "verify", email, message: generic }), headers);
+}
+
+async function handleAccessVerify(req, res, email, code) {
+  const headers = { "Content-Type": "text/html; charset=utf-8" };
+  if (!/^\d{6}$/.test(String(code || "").trim())) {
+    send(res, 400, accessForm({ step: "verify", email, message: "Enter the 6-digit code from your email." }), headers);
+    return;
+  }
+  const result = await verifyOtp(email, code);
+  if (!result.ok) {
+    if (result.reason === "expired") {
+      send(res, 400, accessForm({ step: "request", email, message: "That code expired. Request a new one." }), headers);
+      return;
+    }
+    if (result.reason === "locked") {
+      send(res, 429, accessForm({ step: "request", email, message: "Too many incorrect attempts. Request a new code." }), headers);
+      return;
+    }
+    send(res, 401, accessForm({ step: "verify", email, message: "Incorrect code. Try again." }), headers);
+    return;
+  }
+  // Code verified — re-check the entitlement is still active before granting a session.
+  const entitlement = await firestoreGet(ENTITLEMENT_COLLECTION, emailId(email));
+  if (!entitlement || !entitlement.active) {
+    send(res, 403, accessForm({ step: "request", email, message: "No active purchase found for that email." }), headers);
+    return;
+  }
+  const token = await createSession(email, entitlement);
+  setSessionCookie(res, token, req);
+  res.writeHead(303, { Location: "/paid/edition.html", "Cache-Control": "no-store" });
+  res.end();
 }
 
 async function handleAccess(req, res) {
   if (req.method === "GET") {
-    send(res, 200, accessForm(), { "Content-Type": "text/html; charset=utf-8" });
+    const access = await sessionGateFromRequest(req);
+    if (access.ok) {
+      res.writeHead(303, { Location: "/paid/edition.html", "Cache-Control": "no-store" });
+      res.end();
+      return;
+    }
+    const url = new URL(req.url || "/access", `http://${req.headers.host || "localhost"}`);
+    const reason = url.searchParams.get("reason");
+    const message = reason === "expired"
+      ? "Your 10-day browser unlock expired. Enter your checkout email and we'll send a fresh access code."
+      : reason === "signin"
+        ? "Sign in with your checkout email to open the protected edition on this browser."
+        : "";
+    send(res, 200, accessForm({ message }), { "Content-Type": "text/html; charset=utf-8" });
     return;
   }
   if (req.method !== "POST") {
@@ -845,23 +1105,20 @@ async function handleAccess(req, res) {
   try {
     const raw = await readBody(req);
     const params = new URLSearchParams(raw);
+    const intent = String(params.get("intent") || "request");
     const email = String(params.get("email") || "").trim().toLowerCase();
     if (!validEmail(email)) {
-      send(res, 400, accessForm("Enter a valid email."), { "Content-Type": "text/html; charset=utf-8" });
+      send(res, 400, accessForm({ step: "request", email: "", message: "Enter a valid email." }), { "Content-Type": "text/html; charset=utf-8" });
       return;
     }
-    const entitlement = await firestoreGet(ENTITLEMENT_COLLECTION, emailId(email));
-    if (!entitlement || !entitlement.active) {
-      send(res, 403, accessForm("No active PayPal purchase found for that email yet."), { "Content-Type": "text/html; charset=utf-8" });
-      return;
+    if (intent === "verify") {
+      await handleAccessVerify(req, res, email, params.get("code"));
+    } else {
+      await handleAccessRequest(req, res, email);
     }
-    const token = await createSession(email, entitlement);
-    setSessionCookie(res, token, req);
-    res.writeHead(303, { Location: "/paid/edition.html", "Cache-Control": "no-store" });
-    res.end();
   } catch (err) {
     console.error("access_failed", err.message);
-    send(res, 500, accessForm("Access check failed. Try again in a minute."), { "Content-Type": "text/html; charset=utf-8" });
+    send(res, 500, accessForm({ message: "Access check failed. Try again in a minute." }), { "Content-Type": "text/html; charset=utf-8" });
   }
 }
 
@@ -1297,6 +1554,13 @@ async function serveProtectedFile(req, res) {
 
 function servePublicKit(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+  // The audit kit is part of the paid bundle when the product is live. No free
+  // public access — nudge to checkout. Buyers get it via the gated /paid/kit/ path.
+  if (PRODUCT_PUBLIC_ENABLED) {
+    res.writeHead(303, { Location: "/ai-agent-audit-kit/", "Cache-Control": "no-store" });
+    res.end();
+    return;
+  }
   if (url.pathname === "/kit.zip") {
     if (!existsSync(PRODUCT_RELEASE_ZIP)) {
       send(res, 404, "Not Found", { "Content-Type": "text/plain; charset=utf-8" });
@@ -1327,16 +1591,22 @@ function servePublicKit(req, res) {
   serveFilePath(req, res, filePath);
 }
 
+async function handleSessionStatus(req, res) {
+  const access = await sessionGateFromRequest(req);
+  send(res, 200, JSON.stringify({ authenticated: access.ok }), { "Content-Type": "application/json; charset=utf-8" });
+}
+
 async function handlePaid(req, res) {
   if (req.method === "GET" && (req.url === "/paid" || req.url === "/paid/")) {
     res.writeHead(303, { Location: "/paid/edition.html", "Cache-Control": "no-store" });
     res.end();
     return;
   }
-  const access = await sessionFromRequest(req);
-  if (!access) {
+  const access = await sessionGateFromRequest(req);
+  if (!access.ok) {
     clearSessionCookie(res);
-    res.writeHead(303, { Location: "/access", "Cache-Control": "no-store" });
+    const reason = access.reason === "expired" ? "expired" : "signin";
+    res.writeHead(303, { Location: `/access?reason=${reason}`, "Cache-Control": "no-store" });
     res.end();
     return;
   }
@@ -1346,13 +1616,16 @@ async function handlePaid(req, res) {
 function serveStatic(req, res) {
   const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
   if (url.pathname === "/edition.html" || url.pathname === "/edition") {
-    if (FREE_EDITION_ENABLED && url.pathname === "/edition") {
-      res.writeHead(303, { Location: "/edition.html", "Cache-Control": "public, max-age=300" });
+    // Single-book IA: when the product is live there is no public edition — the
+    // homepage grid is the book. Send old/inbound edition links to the grid.
+    if (PRODUCT_PUBLIC_ENABLED) {
+      res.writeHead(301, { Location: "/", "Cache-Control": "public, max-age=3600" });
       res.end();
       return;
     }
-    if (!FREE_EDITION_ENABLED) {
-      res.writeHead(303, { Location: "/access", "Cache-Control": "no-store" });
+    // Product off (fallback): the free continuous edition is served publicly.
+    if (url.pathname === "/edition") {
+      res.writeHead(303, { Location: "/edition.html", "Cache-Control": "public, max-age=300" });
       res.end();
       return;
     }
@@ -1432,6 +1705,11 @@ createServer(async (req, res) => {
 
     if (url.pathname === "/api/paypal/webhook") {
       await handlePaypalWebhook(req, res);
+      return;
+    }
+
+    if (url.pathname === "/api/session") {
+      await handleSessionStatus(req, res);
       return;
     }
 
