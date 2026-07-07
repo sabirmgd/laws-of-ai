@@ -277,6 +277,7 @@
   // ---------- Session-aware UI (paid users see different CTAs) ----------
   var ARROW = '<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';
   var PAID_EDITION = "/paid/edition.html";
+  function isUnlocked() { return document.cookie.indexOf("loa_unlocked=") !== -1; }
   function applyAuthenticatedState() {
     var navCta = document.querySelector(".nav__cta");
     if (navCta) { navCta.setAttribute("href", PAID_EDITION); navCta.innerHTML = "Read the edition " + ARROW; }
@@ -312,13 +313,8 @@
     if (bookLink) { bookLink.setAttribute("href", PAID_EDITION); bookLink.textContent = "Read the edition"; }
   }
 
-  function checkSession() {
-    fetch("/api/session", { credentials: "same-origin" })
-      .then(function (r) { return r.ok ? r.json() : Promise.reject(r); })
-      .then(function (d) { if (d.authenticated) applyAuthenticatedState(); })
-      .catch(function () {});
-  }
-  checkSession();
+  if (isUnlocked()) applyAuthenticatedState();
+  else { fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(d){if(d.authenticated)applyAuthenticatedState()}).catch(function(){}); }
 
   // ---------- Deep-linking ----------
   function openFromHash() {

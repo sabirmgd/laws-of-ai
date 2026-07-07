@@ -63,6 +63,7 @@ const SESSION_COLLECTION = process.env.SESSION_COLLECTION || "lawsAiSessions";
 const ORDER_COLLECTION = process.env.ORDER_COLLECTION || "lawsAiOrders";
 const OTP_COLLECTION = process.env.OTP_COLLECTION || "lawsAiOtps";
 const SESSION_COOKIE = "loa_session";
+const UNLOCKED_COOKIE = "loa_unlocked";
 const SESSION_TTL_SECONDS = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 10);
 const OTP_TTL_SECONDS = Number(process.env.OTP_TTL_SECONDS || 600);
 const OTP_MAX_ATTEMPTS = Number(process.env.OTP_MAX_ATTEMPTS || 5);
@@ -145,14 +146,21 @@ function parseCookies(req) {
 function setSessionCookie(res, token, req) {
   const host = String(req.headers.host || "");
   const secure = host.includes("localhost") || host.startsWith("127.0.0.1") ? "" : "; Secure";
+  const maxAge = `Max-Age=${SESSION_TTL_SECONDS}`;
   res.setHeader(
     "Set-Cookie",
-    `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL_SECONDS}${secure}`
+    [
+      `${SESSION_COOKIE}=${encodeURIComponent(token)}; HttpOnly; SameSite=Lax; Path=/; ${maxAge}${secure}`,
+      `${UNLOCKED_COOKIE}=1; SameSite=Lax; Path=/; ${maxAge}${secure}`,
+    ]
   );
 }
 
 function clearSessionCookie(res) {
-  res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`);
+  res.setHeader("Set-Cookie", [
+    `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0`,
+    `${UNLOCKED_COOKIE}=; SameSite=Lax; Path=/; Max-Age=0`,
+  ]);
 }
 
 function htmlPage(title, body) {
@@ -1593,6 +1601,11 @@ function servePublicKit(req, res) {
 
 async function handleSessionStatus(req, res) {
   const access = await sessionGateFromRequest(req);
+  if (access.ok) {
+    const host = String(req.headers.host || "");
+    const secure = host.includes("localhost") || host.startsWith("127.0.0.1") ? "" : "; Secure";
+    res.setHeader("Set-Cookie", `${UNLOCKED_COOKIE}=1; SameSite=Lax; Path=/; Max-Age=${SESSION_TTL_SECONDS}${secure}`);
+  }
   send(res, 200, JSON.stringify({ authenticated: access.ok }), { "Content-Type": "application/json; charset=utf-8" });
 }
 

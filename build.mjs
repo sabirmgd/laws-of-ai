@@ -1263,9 +1263,8 @@ ${backTopHtml}
       // log the law open as a page-level event so funnel reports work
       t('law_view',{law_slug:location.pathname});
       // Session-aware CTAs — paid users see different copy
-      (function(){
-        fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.ok?r.json():Promise.reject(r)}).then(function(d){if(!d.authenticated)return;var A='<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';var n=document.querySelector('.nav__cta');if(n){n.setAttribute('href','/paid/edition.html');n.innerHTML='Read the edition '+A};var b=document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');if(b){b.setAttribute('href','/paid/edition.html');b.textContent='Read the edition'};var f=document.querySelector('.ed__foot-sub a[href*="ai-agent-audit-kit"]');if(f)f.setAttribute('href','/paid/edition.html');document.querySelectorAll('.law__cta,.law__unlock').forEach(function(e){e.setAttribute('href','/paid/edition.html');e.innerHTML='Read the full edition '+A})}).catch(function(){});
-      })();
+      if(document.cookie.indexOf("loa_unlocked=")!==-1){cs()}else{fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(d){if(d.authenticated)cs()}).catch(function(){})}
+      function cs(){var A='<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';var n=document.querySelector('.nav__cta');if(n){n.setAttribute('href','/paid/edition.html');n.innerHTML='Read the edition '+A};var b=document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');if(b){b.setAttribute('href','/paid/edition.html');b.textContent='Read the edition'};var f=document.querySelector('.ed__foot-sub a[href*="ai-agent-audit-kit"]');if(f)f.setAttribute('href','/paid/edition.html');document.querySelectorAll('.law__cta,.law__unlock').forEach(function(e){e.setAttribute('href','/paid/edition.html');e.innerHTML='Read the full edition '+A})}
     })();
   </script>
 </body>
@@ -1390,9 +1389,8 @@ ${backTopHtml}
       window.addEventListener('scroll',s,{passive:true});s();
       if(bt)bt.addEventListener('click',function(){window.scrollTo({top:0,behavior:'smooth'});});
       // Session-aware CTAs
-      (function(){
-        fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.ok?r.json():Promise.reject(r)}).then(function(d){if(!d.authenticated)return;var A='<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';var n=document.querySelector('.nav__cta');if(n){n.setAttribute('href','/paid/edition.html');n.innerHTML='Read the edition '+A};var b=document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');if(b){b.setAttribute('href','/paid/edition.html');b.textContent='Read the edition'};document.querySelectorAll('.law__cta').forEach(function(e){e.setAttribute('href','/paid/edition.html');e.innerHTML='Read the full edition '+A})}).catch(function(){});
-      })();
+      if(document.cookie.indexOf("loa_unlocked=")!==-1){cs()}else{fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(d){if(d.authenticated)cs()}).catch(function(){})}
+      function cs(){var A='<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';var n=document.querySelector('.nav__cta');if(n){n.setAttribute('href','/paid/edition.html');n.innerHTML='Read the edition '+A};var b=document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');if(b){b.setAttribute('href','/paid/edition.html');b.textContent='Read the edition'};document.querySelectorAll('.law__cta').forEach(function(e){e.setAttribute('href','/paid/edition.html');e.innerHTML='Read the full edition '+A})}
     })();
   </script>
 </body>
@@ -1869,6 +1867,9 @@ ${productIsFree() ? "" : `
         a.addEventListener('click',function(){track('product_checkout_click',{product:a.dataset.product||'ai-agent-audit-kit',checkout_configured:true,provider:'paypal'});});
       });
       ${productIsFree() || PRODUCT.checkoutUrl ? "" : "initPayPal();"}
+      // Session-aware CTAs
+      if(document.cookie.indexOf("loa_unlocked=")!==-1){cs()}else{fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(d){if(d.authenticated)cs()}).catch(function(){})}
+      function cs(){var A='<svg class="arw" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17L17 7M9 7h8v8"/></svg>';var n=document.querySelector('.nav__cta');if(n){n.setAttribute('href','/paid/edition.html');n.innerHTML='Read the edition '+A};var b=document.querySelector('.nav__link[href="/ai-agent-audit-kit/"]');if(b){b.setAttribute('href','/paid/edition.html');b.textContent='Read the edition'};document.querySelectorAll('.product__buy,[data-track="product_checkout_click"]').forEach(function(e){e.setAttribute('href','/paid/edition.html');e.textContent='Read the full edition'})}
     })();
   </script>
 </body>
